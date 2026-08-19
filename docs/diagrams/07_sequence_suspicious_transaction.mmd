@@ -1,0 +1,82 @@
+---
+title: Sequence Diagram - suspicious transaction, verification and fraud review
+---
+sequenceDiagram
+    autonumber
+    actor C as Customer
+    participant UI as React front end
+    participant TS as TransactionService
+    participant FR as FraudRiskService
+    participant NS as NotificationService
+    participant AS as AuditService
+    participant DB as Database
+    actor A as Fraud Analyst
+    participant FCS as FraudCaseService
+
+    C->>UI: Submit a large transfer
+    UI->>TS: POST /api/transactions/transfer
+    TS->>TS: Validation passes
+    TS->>FR: evaluate(account, beneficiary, amount, now)
+    FR-->>TS: score and level
+
+    alt MEDIUM risk (score 30 to 59)
+        rect rgb(253, 243, 226)
+            TS->>DB: Save transaction, status PENDING_VERIFICATION
+            TS->>DB: Insert FraudAlert (status OPEN)
+            TS->>TS: Generate a six digit code
+            TS->>DB: Insert VerificationRequest storing only the BCrypt hash
+            TS->>AS: FRAUD_ALERT_RAISED, VERIFICATION_REQUESTED
+            TS->>NS: Deliver the code through the notification module
+            NS->>DB: Insert notification
+            TS-->>UI: 201 PENDING_VERIFICATION, verificationRequired = true
+        end
+        UI->>C: Show the verification form
+        C->>UI: Read the code on the Notifications page and enter it
+        UI->>TS: POST /api/transactions/{ref}/verify
+        TS->>DB: Load the pending verification request
+        alt Code correct and not expired
+            TS->>AS: VERIFICATION_SUCCESS
+            TS->>DB: Debit and credit, status APPROVED, close the alert
+            TS->>NS: "Transfer completed"
+            TS-->>UI: 200 APPROVED
+        else Wrong code, attempts remaining
+            TS->>AS: VERIFICATION_FAILED
+            TS-->>UI: 422 INVALID_VERIFICATION_CODE with attempts left
+        else All 3 attempts used, or the code expired
+            TS->>DB: status BLOCKED, verification FAILED
+            TS->>DB: Escalate the alert to a new FraudCase
+            TS->>AS: TRANSACTION_BLOCKED, FRAUD_CASE_OPENED
+            TS->>NS: "Transfer blocked"
+            TS-->>UI: 422 VERIFICATION_FAILED
+        end
+
+    else HIGH risk (score 60 and above)
+        rect rgb(251, 236, 235)
+            TS->>DB: Save transaction, status PENDING (held)
+            TS->>DB: Insert FraudAlert (status UNDER_REVIEW)
+            TS->>DB: Insert FraudCase (status OPEN)
+            TS->>AS: FRAUD_ALERT_RAISED, FRAUD_CASE_OPENED
+            TS->>NS: "Transfer held for review"
+            TS-->>UI: 201 PENDING
+        end
+        UI->>C: Explain that the transfer is being reviewed
+
+        A->>FCS: GET /api/fraud-cases
+        FCS-->>A: Open cases with the reason each was flagged
+        A->>FCS: POST /api/fraud-cases/{ref}/assign
+        FCS->>DB: status UNDER_REVIEW, assigned to the analyst
+        A->>FCS: POST /api/fraud-cases/{ref}/decision + remarks
+        alt Analyst approves
+            FCS->>TS: releaseAfterReview(...)
+            TS->>DB: Debit and credit, status APPROVED
+            FCS->>DB: case RESOLVED_APPROVED, alert CLOSED
+            TS->>NS: "Transfer completed"
+        else Analyst blocks
+            FCS->>TS: blockAfterReview(...)
+            TS->>DB: status BLOCKED, no money moved
+            FCS->>DB: case RESOLVED_BLOCKED, alert CLOSED
+            TS->>NS: "Transfer blocked"
+        end
+        FCS->>AS: FRAUD_CASE_DECIDED (who decided, and why)
+        FCS-->>A: 200 with the final case and transaction status
+    end

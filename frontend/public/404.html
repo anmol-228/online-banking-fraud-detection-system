@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Online Banking &amp; Fraud Detection System</title>
+    <script>
+      // The published showcase uses a hash router, so every real route lives after the '#'.
+      // A visitor arriving at a plain sub-path (an old link, or a hand-typed URL) would otherwise
+      // see the GitHub Pages 404 page. Send them to the application and preserve where they were
+      // trying to go.
+      (function redirectIntoApp() {
+        var segments = window.location.pathname.split('/').filter(Boolean);
+        var base = segments.length ? '/' + segments[0] + '/' : '/';
+        var route = '/' + segments.slice(1).join('/');
+        window.location.replace(base + '#' + route + window.location.search);
+      })();
+    </script>
+  </head>
+  <body>
+    <p>Redirecting…</p>
+  </body>
+</html>

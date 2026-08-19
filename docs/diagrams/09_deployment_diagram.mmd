@@ -1,0 +1,49 @@
+---
+title: Deployment Diagram - proposed environment (not an achieved deployment)
+---
+flowchart TB
+    subgraph CLIENT["Client device"]
+        BROWSER["Web browser<br/>React single page application"]
+    end
+
+    subgraph EDGE["Edge"]
+        LB["HTTPS reverse proxy / load balancer<br/>TLS termination, static file hosting"]
+    end
+
+    subgraph APPTIER["Application tier"]
+        APP1["Application server node 1<br/>Spring Boot JAR on a JVM<br/>stateless, JWT authentication"]
+        APP2["Application server node 2<br/>identical, added only if load requires it"]
+    end
+
+    subgraph DATATIER["Data tier"]
+        DBP[("MySQL 8 primary<br/>customer, account, transaction,<br/>alert, case, audit data")]
+        DBB[("Scheduled backup storage<br/>daily full, restore rehearsed")]
+    end
+
+    subgraph OPS["Operations"]
+        LOGS["Log collection<br/>application and audit events"]
+        MON["Monitoring<br/>polls /actuator/health"]
+    end
+
+    BROWSER -- "HTTPS" --> LB
+    LB -- "HTTP inside the private network" --> APP1
+    LB -- "HTTP inside the private network" --> APP2
+    APP1 -- "JDBC" --> DBP
+    APP2 -- "JDBC" --> DBP
+    DBP -- "scheduled dump" --> DBB
+    APP1 -.-> LOGS
+    APP2 -.-> LOGS
+    MON -.-> APP1
+    MON -.-> APP2
+
+    NOTE["Academic note: the prototype was demonstrated with a single<br/>Spring Boot process and an H2 in-memory database on one laptop.<br/>The layout above is the proposed environment, not a system that<br/>has been deployed to a real bank."]
+
+    classDef client fill:#e8eff8,stroke:#1d4a85,color:#12325b
+    classDef app fill:#e6f4ec,stroke:#1a7f4b,color:#12603a
+    classDef data fill:#f4f6f9,stroke:#5d6b7a,color:#1c2530
+    classDef note fill:#fdf3e2,stroke:#a86a09,color:#7d4e06
+
+    class BROWSER,LB client
+    class APP1,APP2 app
+    class DBP,DBB,LOGS,MON data
+    class NOTE note

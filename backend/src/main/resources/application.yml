@@ -1,0 +1,108 @@
+# =============================================================================
+# Online Banking & Fraud Detection System — backend configuration
+#
+# A simulated banking platform for development and demonstration.
+# No real banking credentials appear in this file. Every value can be overridden
+# by an environment variable, so nothing secret has to be committed.
+# =============================================================================
+
+spring:
+  application:
+    name: online-banking-fraud-detection-system
+  profiles:
+    default: dev
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    # Never expose stack traces or internal messages to a browser (NFR-01).
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    com.sepro.obfds: INFO
+
+# -----------------------------------------------------------------------------
+# Application settings (see AppProperties.java)
+# -----------------------------------------------------------------------------
+obfds:
+  seed-demo-data: ${OBFDS_SEED_DEMO_DATA:true}
+  jwt:
+    secret: ${OBFDS_JWT_SECRET:change-me-local-dev-secret-key-min-32-chars}
+    expiry-minutes: ${OBFDS_JWT_EXPIRY_MINUTES:120}
+  cors:
+    allowed-origins: ${OBFDS_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  verification:
+    code-validity-minutes: 10
+    max-attempts: 3
+  # Deterministic fraud rule thresholds (FR-11, FR-12). Tunable without recompiling.
+  fraud:
+    high-amount: ${OBFDS_FRAUD_HIGH_AMOUNT:50000}
+    very-high-amount: ${OBFDS_FRAUD_VERY_HIGH_AMOUNT:100000}
+    new-beneficiary-hours: ${OBFDS_FRAUD_NEW_BENEFICIARY_HOURS:24}
+    velocity-count: ${OBFDS_FRAUD_VELOCITY_COUNT:3}
+    velocity-minutes: ${OBFDS_FRAUD_VELOCITY_MINUTES:10}
+    balance-fraction: 0.80
+    odd-hour-start: 0
+    odd-hour-end: 5
+    medium-score-threshold: 30
+    high-score-threshold: 60
+
+---
+# =============================================================================
+# dev profile — H2 in-memory database, seeded demo data.
+# This is the profile used for local development and demonstrations.
+# =============================================================================
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:h2:mem:obfds;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+
+---
+# =============================================================================
+# mysql profile — MySQL 8, the intended project environment.
+# Start with: mvn spring-boot:run -Dspring-boot.run.profiles=mysql
+# =============================================================================
+spring:
+  config:
+    activate:
+      on-profile: mysql
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/obfds?createDatabaseIfNotExist=true&serverTimezone=UTC}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${MYSQL_USERNAME:obfds_user}
+    password: ${MYSQL_PASSWORD:}
+  jpa:
+    hibernate:
+      # `update` keeps the schema in step with the entities during development.
+      # A real deployment would use a migration tool instead (see docs/12_DEPLOYMENT.md).
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.MySQLDialect

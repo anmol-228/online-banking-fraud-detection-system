@@ -1,0 +1,169 @@
+---
+title: Entity Relationship Diagram - Online Banking and Fraud Detection System
+---
+erDiagram
+    APPLICATION_USER {
+        bigint id PK
+        varchar username UK "login name"
+        varchar password_hash "BCrypt hash only"
+        varchar full_name
+        varchar email UK
+        boolean enabled
+        timestamp created_at
+    }
+
+    USER_ROLE {
+        bigint id PK
+        varchar name UK "CUSTOMER, BANK_ADMIN, FRAUD_ANALYST, OPS_OFFICER, SYSTEM_ADMIN"
+        varchar description
+    }
+
+    APPLICATION_USER_ROLE {
+        bigint user_id FK
+        bigint role_id FK
+    }
+
+    CUSTOMER {
+        bigint id PK
+        varchar customer_number UK
+        varchar full_name
+        varchar email UK
+        varchar phone
+        varchar address
+        bigint user_id FK "one-to-one with the login"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ACCOUNT {
+        bigint id PK
+        varchar account_number UK
+        bigint customer_id FK
+        varchar account_type "SAVINGS or CURRENT"
+        decimal balance
+        varchar currency
+        varchar status "ACTIVE, BLOCKED, CLOSED"
+        timestamp opened_at
+        bigint version "optimistic lock"
+    }
+
+    BENEFICIARY {
+        bigint id PK
+        bigint customer_id FK
+        varchar name
+        varchar beneficiary_account_number
+        varchar bank_name
+        varchar ifsc_code
+        varchar nickname
+        boolean active
+        timestamp created_at "also a fraud signal"
+    }
+
+    BANK_TRANSACTION {
+        bigint id PK
+        varchar reference UK
+        bigint source_account_id FK
+        bigint beneficiary_id FK "null when the payee was not saved"
+        varchar destination_account_number
+        varchar destination_name
+        decimal amount
+        varchar currency
+        varchar description
+        varchar status "PENDING, PENDING_VERIFICATION, APPROVED, BLOCKED, FAILED"
+        varchar risk_level "LOW, MEDIUM, HIGH"
+        int risk_score
+        varchar risk_reason
+        varchar status_reason
+        varchar idempotency_key UK "duplicate protection"
+        varchar initiated_by
+        timestamp created_at
+        timestamp updated_at
+        timestamp completed_at
+    }
+
+    VERIFICATION_REQUEST {
+        bigint id PK
+        bigint transaction_id FK
+        varchar code_hash "BCrypt hash only"
+        varchar status "PENDING, VERIFIED, FAILED, EXPIRED"
+        int attempts
+        int max_attempts
+        timestamp created_at
+        timestamp expires_at
+        timestamp verified_at
+    }
+
+    FRAUD_ALERT {
+        bigint id PK
+        varchar reference UK
+        bigint transaction_id FK
+        varchar risk_level
+        int risk_score
+        varchar reason "which rules fired"
+        varchar status "OPEN, UNDER_REVIEW, CLOSED"
+        timestamp created_at
+    }
+
+    FRAUD_CASE {
+        bigint id PK
+        varchar reference UK
+        bigint alert_id FK, UK "one case per alert"
+        varchar status "OPEN, UNDER_REVIEW, RESOLVED_APPROVED, RESOLVED_BLOCKED"
+        varchar assigned_to
+        varchar remarks
+        varchar decided_by
+        timestamp created_at
+        timestamp updated_at
+        timestamp closed_at
+    }
+
+    DISPUTE {
+        bigint id PK
+        varchar reference UK
+        bigint customer_id FK
+        bigint transaction_id FK
+        varchar subject
+        varchar description
+        varchar status "OPEN, UNDER_REVIEW, RESOLVED, REJECTED"
+        varchar resolution
+        varchar handled_by
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    NOTIFICATION {
+        bigint id PK
+        bigint customer_id FK
+        varchar type "TRANSACTION, SECURITY, FRAUD_ALERT, VERIFICATION, DISPUTE, GENERAL"
+        varchar title
+        varchar message
+        varchar related_reference
+        boolean read_flag
+        timestamp created_at
+    }
+
+    AUDIT_LOG {
+        bigint id PK
+        timestamp occurred_at
+        varchar username
+        varchar roles
+        varchar action
+        varchar entity_type
+        varchar entity_reference
+        varchar details
+        varchar outcome "SUCCESS or FAILURE"
+    }
+
+    APPLICATION_USER ||--o{ APPLICATION_USER_ROLE : "is granted"
+    USER_ROLE        ||--o{ APPLICATION_USER_ROLE : "granted to"
+    APPLICATION_USER ||--o| CUSTOMER              : "banking profile of"
+    CUSTOMER         ||--o{ ACCOUNT               : "owns"
+    CUSTOMER         ||--o{ BENEFICIARY           : "saves"
+    CUSTOMER         ||--o{ NOTIFICATION          : "receives"
+    CUSTOMER         ||--o{ DISPUTE               : "raises"
+    ACCOUNT          ||--o{ BANK_TRANSACTION      : "is the source of"
+    BENEFICIARY      ||--o{ BANK_TRANSACTION      : "is the payee of"
+    BANK_TRANSACTION ||--o{ FRAUD_ALERT           : "may raise"
+    BANK_TRANSACTION ||--o{ VERIFICATION_REQUEST  : "may require"
+    BANK_TRANSACTION ||--o{ DISPUTE               : "may be disputed in"
+    FRAUD_ALERT      ||--o| FRAUD_CASE            : "may be escalated to"

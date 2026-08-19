@@ -1,0 +1,76 @@
+---
+title: System Architecture - Online Banking and Fraud Detection System
+---
+flowchart TB
+    subgraph PRESENT["Presentation Layer - React 19 + Vite (browser)"]
+        UI_C["Customer screens<br/>dashboard, accounts, transfer,<br/>verification, notifications, complaints"]
+        UI_F["Fraud analyst screens<br/>alerts, cases, decisions"]
+        UI_A["Administrator screens<br/>users and roles, audit, reports"]
+    end
+
+    subgraph API["Spring Boot backend - http://localhost:8080"]
+        subgraph SEC["Authentication and Authorization Layer"]
+            FILTER["JwtAuthenticationFilter<br/>reads the bearer token"]
+            SECCFG["SecurityConfig<br/>role rules per endpoint"]
+            CURRENT["CurrentUserService<br/>resolves the caller, never trusts the client"]
+        end
+
+        subgraph CTRL["REST Controllers"]
+            C1["/api/auth"]
+            C2["/api/accounts<br/>/api/beneficiaries"]
+            C3["/api/transactions"]
+            C4["/api/alerts<br/>/api/fraud-cases"]
+            C5["/api/notifications<br/>/api/disputes"]
+            C6["/api/admin<br/>/api/audit  /api/reports"]
+        end
+
+        subgraph BIZ["Business Logic Layer - services"]
+            S1["AuthService"]
+            S2["AccountService<br/>BeneficiaryService"]
+            S3["TransactionService<br/>validation, workflow, settlement"]
+            S4["FraudAlertService<br/>FraudCaseService  DisputeService"]
+            S5["AdminService<br/>ReportService  AuditQueryService"]
+        end
+
+        subgraph FRAUD["Fraud Detection and Risk Analysis Layer"]
+            RULES["FraudRiskService<br/>6 deterministic rules -> score -> LOW / MEDIUM / HIGH"]
+        end
+
+        subgraph CROSS["Cross-cutting"]
+            NOTIF["NotificationService"]
+            AUDIT["AuditService<br/>writes in its own transaction"]
+            ERR["GlobalExceptionHandler<br/>one safe error shape"]
+        end
+
+        subgraph DATA["Persistence Layer - Spring Data JPA"]
+            REPO["12 repositories"]
+        end
+    end
+
+    DB[("Database<br/>MySQL 8 (project environment)<br/>H2 in-memory (dev and test)")]
+
+    PRESENT -- "HTTPS / JSON + Bearer token" --> FILTER
+    FILTER --> SECCFG --> CTRL
+    CTRL --> BIZ
+    CURRENT -.-> BIZ
+    S3 --> RULES
+    BIZ --> NOTIF
+    BIZ --> AUDIT
+    BIZ --> REPO
+    RULES --> REPO
+    NOTIF --> REPO
+    AUDIT --> REPO
+    REPO --> DB
+    CTRL -.-> ERR
+
+    classDef ui fill:#e8eff8,stroke:#1d4a85,color:#12325b
+    classDef sec fill:#fbeceb,stroke:#b3261e,color:#8c1c16
+    classDef biz fill:#e6f4ec,stroke:#1a7f4b,color:#12603a
+    classDef fr fill:#fdf3e2,stroke:#a86a09,color:#7d4e06
+    classDef db fill:#f4f6f9,stroke:#5d6b7a,color:#1c2530
+
+    class UI_C,UI_F,UI_A ui
+    class FILTER,SECCFG,CURRENT sec
+    class S1,S2,S3,S4,S5 biz
+    class RULES fr
+    class REPO,DB db

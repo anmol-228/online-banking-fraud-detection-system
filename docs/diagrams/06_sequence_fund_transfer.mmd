@@ -1,0 +1,59 @@
+---
+title: Sequence Diagram - low risk fund transfer (FR-07)
+---
+sequenceDiagram
+    autonumber
+    actor C as Customer
+    participant UI as React front end
+    participant SEC as JwtAuthenticationFilter
+    participant TC as TransactionController
+    participant TS as TransactionService
+    participant FR as FraudRiskService
+    participant AR as AccountRepository
+    participant NS as NotificationService
+    participant AS as AuditService
+    participant DB as Database
+
+    C->>UI: Fill transfer form, press Review
+    UI->>C: Show confirmation panel
+    C->>UI: Press Confirm and transfer
+    UI->>SEC: POST /api/transactions/transfer + Bearer token
+    SEC->>SEC: Verify signature and expiry
+    SEC->>TC: Authenticated request (role CUSTOMER)
+    TC->>TC: Bean Validation on the request body
+    TC->>TS: transfer(request)
+
+    TS->>DB: Find source account owned by this customer
+    DB-->>TS: Account
+    TS->>TS: Check account ACTIVE, not a self-transfer
+    TS->>DB: Sum amount reserved by pending transfers
+    DB-->>TS: Reserved amount
+    TS->>TS: available = balance minus reserved, check it is sufficient
+    TS->>DB: Look for an identical transfer in the last 60 seconds
+    DB-->>TS: None found
+
+    Note over TS,FR: Risk is assessed BEFORE the row is stored, so the<br/>transfer is not counted against itself by the velocity rule
+    TS->>FR: evaluate(account, beneficiary, amount, now)
+    FR->>DB: Count recent transfers and failed verifications
+    DB-->>FR: Counts
+    FR-->>TS: score 0, level LOW, no factors fired
+
+    TS->>DB: Save transaction (status PENDING, risk LOW)
+    TS->>AS: TRANSFER_INITIATED, RISK_EVALUATED
+    AS->>DB: Insert audit rows (own transaction)
+
+    rect rgb(230, 244, 236)
+        Note over TS,DB: One database transaction: both balances<br/>and the status change commit together (NFR-02)
+        TS->>AR: Debit source account
+        TS->>AR: Credit destination account if it is internal
+        TS->>TS: status = APPROVED, completedAt = now
+        AR->>DB: Persist
+    end
+
+    TS->>AS: TRANSACTION_APPROVED
+    AS->>DB: Insert audit row
+    TS->>NS: notify(customer, "Transfer completed")
+    NS->>DB: Insert notification
+    TS-->>TC: TransactionResponse (APPROVED, LOW, score 0)
+    TC-->>UI: 201 Created
+    UI->>C: Transaction detail page with the green Approved badge

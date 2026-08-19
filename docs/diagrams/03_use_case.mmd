@@ -1,0 +1,79 @@
+---
+title: Use Case Diagram - Online Banking and Fraud Detection System
+---
+flowchart LR
+    CUST(("Customer"))
+    ANALYST(("Fraud Analyst"))
+    OFFICER(("Bank Operations<br/>Officer"))
+    ADMIN(("Bank<br/>Administrator"))
+    SYSADMIN(("System<br/>Administrator"))
+
+    subgraph SYSTEM["Online Banking and Fraud Detection System"]
+        UC01(["UC-01 Register profile<br/>FR-01"])
+        UC02(["UC-02 Log in<br/>FR-02, FR-03"])
+        UC03(["UC-03 View account details<br/>FR-05"])
+        UC04(["UC-04 Check balance<br/>FR-06"])
+        UC05(["UC-05 Manage beneficiaries<br/>FR-08"])
+        UC06(["UC-06 Initiate fund transfer<br/>FR-07, FR-09"])
+        UC07(["UC-07 View transaction history<br/>FR-10, FR-22"])
+        UC08(["UC-08 Complete additional<br/>verification  FR-14"])
+        UC09(["UC-09 Receive notifications<br/>FR-16"])
+        UC10(["UC-10 Submit complaint<br/>FR-17"])
+
+        UC11(["UC-11 Monitor transactions<br/>FR-11, FR-12"])
+        UC12(["UC-12 Generate fraud alert<br/>FR-13"])
+        UC13(["UC-13 Review fraud case<br/>FR-18"])
+        UC14(["UC-14 Approve, hold or block<br/>FR-15"])
+
+        UC15(["UC-15 Process complaints<br/>FR-17"])
+        UC16(["UC-16 Manage users and roles<br/>FR-19"])
+        UC17(["UC-17 View audit logs<br/>FR-20"])
+        UC18(["UC-18 Generate reports<br/>FR-21"])
+        UC19(["UC-19 Monitor infrastructure<br/>and backups"])
+    end
+
+    CUST --- UC01
+    CUST --- UC02
+    CUST --- UC03
+    CUST --- UC04
+    CUST --- UC05
+    CUST --- UC06
+    CUST --- UC07
+    CUST --- UC08
+    CUST --- UC09
+    CUST --- UC10
+
+    ANALYST --- UC02
+    ANALYST --- UC13
+    ANALYST --- UC14
+    ANALYST --- UC18
+
+    OFFICER --- UC02
+    OFFICER --- UC15
+    OFFICER --- UC18
+
+    ADMIN --- UC02
+    ADMIN --- UC16
+    ADMIN --- UC17
+    ADMIN --- UC18
+
+    SYSADMIN --- UC02
+    SYSADMIN --- UC17
+    SYSADMIN --- UC19
+
+    UC06 -. "includes" .-> UC11
+    UC11 -. "extends when suspicious" .-> UC12
+    UC12 -. "extends when medium risk" .-> UC08
+    UC12 -. "extends when high risk" .-> UC13
+    UC13 -. "includes" .-> UC14
+    UC06 -. "includes" .-> UC09
+
+    classDef actor fill:#12325b,stroke:#0d2444,color:#ffffff
+    classDef customer fill:#e8eff8,stroke:#1d4a85,color:#12325b
+    classDef fraud fill:#fdf3e2,stroke:#a86a09,color:#7d4e06
+    classDef admin fill:#e6f4ec,stroke:#1a7f4b,color:#12603a
+
+    class CUST,ANALYST,OFFICER,ADMIN,SYSADMIN actor
+    class UC01,UC02,UC03,UC04,UC05,UC06,UC07,UC08,UC09,UC10 customer
+    class UC11,UC12,UC13,UC14 fraud
+    class UC15,UC16,UC17,UC18,UC19 admin

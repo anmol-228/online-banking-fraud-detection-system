@@ -1,0 +1,55 @@
+---
+title: Spiral Model applied to the Online Banking and Fraud Detection System
+---
+flowchart TB
+    subgraph C1["CYCLE 1 - Authentication foundation"]
+        direction LR
+        P1["1. Planning<br/>Scope, stakeholders,<br/>FR-01 to FR-04"]
+        R1["2. Risk Analysis<br/>Risk: unauthorised access<br/>Mitigation: BCrypt + JWT + roles"]
+        E1["3. Engineering<br/>Registration, login,<br/>authorization, roles"]
+        V1["4. Evaluation<br/>TC-01, TC-02, TC-03, TC-20<br/>pass; proceed"]
+        P1 --> R1 --> E1 --> V1
+    end
+
+    subgraph C2["CYCLE 2 - Accounts and transactions"]
+        direction LR
+        P2["1. Planning<br/>FR-05 to FR-10, FR-22"]
+        R2["2. Risk Analysis<br/>Risk: wrong balance,<br/>duplicate transfer<br/>Mitigation: DB transaction,<br/>optimistic lock, idempotency key"]
+        E2["3. Engineering<br/>Accounts, beneficiaries,<br/>transfer, history"]
+        V2["4. Evaluation<br/>TC-04 to TC-07, TC-14,<br/>TC-16 pass; proceed"]
+        P2 --> R2 --> E2 --> V2
+    end
+
+    subgraph C3["CYCLE 3 - Fraud monitoring"]
+        direction LR
+        P3["1. Planning<br/>FR-11 to FR-18"]
+        R3["2. Risk Analysis<br/>Risk: false positive,<br/>false negative<br/>Mitigation: transparent rules,<br/>analyst review, tunable limits"]
+        E3["3. Engineering<br/>Rule engine, alerts,<br/>verification, cases"]
+        V3["4. Evaluation<br/>TC-08 to TC-13, TC-17<br/>pass; proceed"]
+        P3 --> R3 --> E3 --> V3
+    end
+
+    subgraph C4["CYCLE 4 - Integration and release"]
+        direction LR
+        P4["1. Planning<br/>FR-19 to FR-21, all NFRs"]
+        R4["2. Risk Analysis<br/>Risk: privilege misuse,<br/>data loss, no evidence<br/>Mitigation: audit trail,<br/>self-lockout guards, backups"]
+        E4["3. Engineering<br/>Administration, audit,<br/>reports, deployment docs"]
+        V4["4. Evaluation<br/>TC-15, TC-18 to TC-23<br/>pass; release for submission"]
+        P4 --> R4 --> E4 --> V4
+    end
+
+    START(["Project start"]) --> C1
+    C1 -- "scope grows" --> C2
+    C2 -- "scope grows" --> C3
+    C3 -- "scope grows" --> C4
+    C4 --> DONE(["Submission-ready prototype"])
+
+    classDef plan fill:#e8eff8,stroke:#1d4a85,color:#12325b
+    classDef risk fill:#fbeceb,stroke:#b3261e,color:#8c1c16
+    classDef eng fill:#e6f4ec,stroke:#1a7f4b,color:#12603a
+    classDef eval fill:#fdf3e2,stroke:#a86a09,color:#7d4e06
+
+    class P1,P2,P3,P4 plan
+    class R1,R2,R3,R4 risk
+    class E1,E2,E3,E4 eng
+    class V1,V2,V3,V4 eval

@@ -1,0 +1,48 @@
+---
+title: System Workflow - fund transfer with fraud monitoring
+---
+flowchart TB
+    START(["Customer opens the application"]) --> LOGIN["Customer login"]
+    LOGIN --> AUTH{"Credentials valid?"}
+    AUTH -- "No" --> AUDIT_FAIL["Record LOGIN_FAILURE<br/>in the audit log"] --> LOGIN
+    AUTH -- "Yes" --> DASH["Banking dashboard"]
+
+    DASH --> INIT["Transaction initiated<br/>source, destination, amount"]
+    INIT --> VALID{"Transaction validation<br/>account active, not self-transfer,<br/>available balance sufficient,<br/>not a repeated submission"}
+    VALID -- "Fails" --> REJECT["Reject with a clear message<br/>Record TRANSFER_REJECTED"] --> DASH
+
+    VALID -- "Passes" --> RISK["Fraud / risk analysis<br/>six deterministic rules produce a score"]
+    RISK --> CLASSIFY{"Risk classification"}
+
+    CLASSIFY -- "LOW<br/>score 0 to 29" --> APPROVE["Transaction APPROVED"]
+    APPROVE --> UPDATE["Records updated<br/>source debited, destination credited<br/>inside one database transaction"]
+    UPDATE --> NOTIFY1["Customer notified"]
+    NOTIFY1 --> AUDIT1["Audit log updated"]
+    AUDIT1 --> ENDOK(["Transfer complete"])
+
+    CLASSIFY -- "MEDIUM<br/>score 30 to 59" --> FLAG1["Transaction FLAGGED<br/>status PENDING_VERIFICATION<br/>fraud alert raised"]
+    FLAG1 --> VERIFY["Additional verification<br/>six digit code sent to the customer"]
+    VERIFY --> CODE{"Correct code entered<br/>within 3 attempts<br/>before it expires?"}
+    CODE -- "Yes" --> APPROVE
+    CODE -- "No" --> BLOCK["Transaction BLOCKED<br/>alert escalated to a fraud case"]
+
+    CLASSIFY -- "HIGH<br/>score 60 and above" --> FLAG2["Transaction FLAGGED<br/>status PENDING (held)<br/>fraud alert + fraud case opened"]
+    FLAG2 --> REVIEW["Fraud analyst reviews the case<br/>reads the reason, records remarks"]
+    REVIEW --> DECISION{"Analyst decision"}
+    DECISION -- "Approve" --> APPROVE
+    DECISION -- "Block" --> BLOCK
+
+    BLOCK --> FINAL["Final status recorded<br/>no money moved"]
+    FINAL --> NOTIFY2["Customer notified"]
+    NOTIFY2 --> AUDIT2["Audit log updated"]
+    AUDIT2 --> ENDBLOCK(["Transfer stopped"])
+
+    classDef ok fill:#e6f4ec,stroke:#1a7f4b,color:#12603a
+    classDef warn fill:#fdf3e2,stroke:#a86a09,color:#7d4e06
+    classDef bad fill:#fbeceb,stroke:#b3261e,color:#8c1c16
+    classDef step fill:#e8eff8,stroke:#1d4a85,color:#12325b
+
+    class APPROVE,UPDATE,NOTIFY1,AUDIT1,ENDOK ok
+    class FLAG1,FLAG2,VERIFY,REVIEW warn
+    class BLOCK,REJECT,FINAL,ENDBLOCK,AUDIT_FAIL bad
+    class LOGIN,DASH,INIT,RISK,NOTIFY2,AUDIT2 step

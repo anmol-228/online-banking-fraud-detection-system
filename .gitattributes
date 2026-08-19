@@ -1,0 +1,24 @@
+# Normalise line endings in the repository; check out native on each platform.
+* text=auto
+
+# Explicitly text
+*.java   text
+*.js     text
+*.jsx    text
+*.css    text
+*.html   text
+*.json   text
+*.md     text
+*.mmd    text
+*.py     text
+*.xml    text
+*.yml    text
+*.yaml   text
+*.properties text
+
+# Explicitly binary
+*.png    binary
+*.jpg    binary
+*.pdf    binary
+*.jar    binary
+*.docx   binary

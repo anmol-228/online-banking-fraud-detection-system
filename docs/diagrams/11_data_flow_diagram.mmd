@@ -1,0 +1,74 @@
+---
+title: Data Flow Diagram (level 1) - Online Banking and Fraud Detection System
+---
+flowchart LR
+    CUST(["Customer"])
+    ANALYST(["Fraud Analyst"])
+    OFFICER(["Operations Officer"])
+    ADMIN(["Bank Administrator"])
+
+    P1["1.0<br/>Authenticate<br/>user"]
+    P2["2.0<br/>Manage accounts<br/>and beneficiaries"]
+    P3["3.0<br/>Process<br/>transaction"]
+    P4["4.0<br/>Assess<br/>risk"]
+    P5["5.0<br/>Raise alert and<br/>notify"]
+    P6["6.0<br/>Review case /<br/>complaint"]
+    P7["7.0<br/>Administer and<br/>report"]
+
+    D1[("D1 application_user<br/>user_role")]
+    D2[("D2 customer, account,<br/>beneficiary")]
+    D3[("D3 bank_transaction,<br/>verification_request")]
+    D4[("D4 fraud_alert,<br/>fraud_case, dispute")]
+    D5[("D5 notification")]
+    D6[("D6 audit_log")]
+
+    CUST -- "credentials" --> P1
+    P1 -- "token" --> CUST
+    P1 <-- "user + roles" --> D1
+    P1 -- "login event" --> D6
+
+    CUST -- "account / payee request" --> P2
+    P2 -- "account details, balance" --> CUST
+    P2 <-- "customer data" --> D2
+    P2 -- "payee event" --> D6
+
+    CUST -- "transfer request" --> P3
+    P3 -- "status and reference" --> CUST
+    P3 <-- "balances" --> D2
+    P3 -- "transaction record" --> D3
+    P3 -- "transfer detail" --> P4
+
+    P4 <-- "recent activity" --> D3
+    P4 <-- "payee age" --> D2
+    P4 -- "score and classification" --> P3
+    P4 -- "risk decision" --> D6
+
+    P3 -- "suspicious transfer" --> P5
+    P5 -- "alert" --> D4
+    P5 -- "message / verification code" --> D5
+    D5 -- "notifications" --> CUST
+    P5 -- "alert event" --> D6
+
+    ANALYST -- "case decision" --> P6
+    OFFICER -- "complaint outcome" --> P6
+    CUST -- "complaint" --> P6
+    P6 <-- "cases and disputes" --> D4
+    P6 -- "release or block" --> P3
+    P6 -- "outcome message" --> D5
+    P6 -- "decision event" --> D6
+
+    ADMIN -- "role / status change" --> P7
+    P7 <-- "users" --> D1
+    P7 <-- "counts" --> D3
+    P7 <-- "counts" --> D4
+    P7 -- "reports" --> ADMIN
+    D6 -- "audit trail" --> P7
+    P7 -- "admin event" --> D6
+
+    classDef proc fill:#e8eff8,stroke:#1d4a85,color:#12325b
+    classDef store fill:#f4f6f9,stroke:#5d6b7a,color:#1c2530
+    classDef ext fill:#12325b,stroke:#0d2444,color:#ffffff
+
+    class P1,P2,P3,P4,P5,P6,P7 proc
+    class D1,D2,D3,D4,D5,D6 store
+    class CUST,ANALYST,OFFICER,ADMIN ext

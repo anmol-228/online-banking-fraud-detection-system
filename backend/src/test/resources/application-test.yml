@@ -1,0 +1,43 @@
+# Configuration used by the automated test suite.
+# An in-memory database is created fresh for the test run and thrown away afterwards.
+spring:
+  datasource:
+    url: jdbc:h2:mem:obfds-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    open-in-view: false
+
+logging:
+  level:
+    root: WARN
+    com.sepro.obfds: WARN
+    org.springframework: WARN
+
+obfds:
+  seed-demo-data: true
+  jwt:
+    secret: test-only-secret-key-for-automated-tests-32chars
+    expiry-minutes: 60
+  cors:
+    allowed-origins: http://localhost:5173
+  verification:
+    code-validity-minutes: 10
+    max-attempts: 3
+  fraud:
+    high-amount: 50000
+    very-high-amount: 100000
+    new-beneficiary-hours: 24
+    velocity-count: 3
+    velocity-minutes: 10
+    balance-fraction: 0.80
+    # The unusual-hour rule is disabled for tests by making the window empty, so that
+    # a test run at 03:00 does not score differently from a test run at 15:00.
+    odd-hour-start: 0
+    odd-hour-end: 0
+    medium-score-threshold: 30
+    high-score-threshold: 60

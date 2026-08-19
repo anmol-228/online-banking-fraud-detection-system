@@ -1,0 +1,78 @@
+name: Deploy frontend showcase to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+# Allow the workflow to publish to Pages using the official Actions-based source.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; do not cancel a run that is already publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build showcase bundle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      # A project Pages site is served from /<repo>/, so the bundle must be built with that as
+      # its base. Deriving it from the repository name keeps this correct if the repo is renamed.
+      - name: Compute base path
+        id: base
+        run: echo "path=/${GITHUB_REPOSITORY#*/}/" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # Showcase mode runs entirely in the browser on simulated data, so the published site
+      # needs no backend.
+      - name: Build
+        working-directory: frontend
+        env:
+          VITE_APP_MODE: showcase
+          VITE_BASE_PATH: ${{ steps.base.outputs.path }}
+          VITE_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: npm run build
+
+      - name: Upload static artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,36 @@
+---
+title: State Diagram - transaction status (FR-22)
+---
+stateDiagram-v2
+    direction LR
+    [*] --> Assessing : transfer passed validation
+
+    state "Risk assessment" as Assessing
+
+    Assessing --> APPROVED : LOW risk (score 0-29)
+    Assessing --> PENDING_VERIFICATION : MEDIUM risk (score 30-59)
+    Assessing --> PENDING : HIGH risk (score 60+)
+
+    state "PENDING_VERIFICATION<br/>funds reserved, not moved" as PENDING_VERIFICATION
+    state "PENDING<br/>held for fraud review,<br/>funds reserved, not moved" as PENDING
+    state "APPROVED<br/>money moved" as APPROVED
+    state "BLOCKED<br/>stopped, no money moved" as BLOCKED
+    state "FAILED<br/>could not be completed" as FAILED
+
+    PENDING_VERIFICATION --> APPROVED : correct code within 3 attempts
+    PENDING_VERIFICATION --> BLOCKED : 3 wrong attempts, or the code expired
+    PENDING --> APPROVED : analyst approves the case
+    PENDING --> BLOCKED : analyst blocks the case
+
+    PENDING --> FAILED : balance insufficient at release
+    PENDING_VERIFICATION --> FAILED : balance insufficient at release
+
+    APPROVED --> [*]
+    BLOCKED --> [*]
+    FAILED --> [*]
+
+    note right of APPROVED
+        APPROVED, BLOCKED and FAILED are final.
+        Any attempt to change a final transaction
+        is rejected with INVALID_STATE.
+    end note

@@ -1,0 +1,77 @@
+---
+title: Module / Component Diagram - the eight required modules
+---
+flowchart TB
+    subgraph M1["M1 User Authentication Module"]
+        M1A["AuthService"]
+        M1B["JwtService<br/>JwtAuthenticationFilter"]
+        M1C["AppUserDetailsService<br/>CurrentUserService"]
+    end
+
+    subgraph M2["M2 Customer Account Module"]
+        M2A["AccountService"]
+        M2B["BeneficiaryService"]
+    end
+
+    subgraph M3["M3 Transaction Module"]
+        M3A["TransactionService<br/>validation, workflow, settlement"]
+    end
+
+    subgraph M4["M4 Fraud Detection Module"]
+        M4A["FraudRiskService<br/>6 rules"]
+        M4B["RiskEvaluation<br/>RiskFactor"]
+    end
+
+    subgraph M5["M5 Alert and Notification Module"]
+        M5A["FraudAlertService"]
+        M5B["NotificationService"]
+    end
+
+    subgraph M6["M6 Fraud / Case Review Module"]
+        M6A["FraudCaseService"]
+        M6B["DisputeService"]
+    end
+
+    subgraph M7["M7 Administration Module"]
+        M7A["AdminService"]
+        M7B["ReportService"]
+    end
+
+    subgraph M8["M8 Audit and Logging Module"]
+        M8A["AuditService<br/>AuditAction"]
+        M8B["AuditQueryService"]
+    end
+
+    REPOS[("Repositories and database")]
+
+    M1 --> M2
+    M2 --> M3
+    M3 --> M4
+    M4 --> M5
+    M3 --> M5
+    M5 --> M6
+    M6 --> M3
+    M7 --> M1
+
+    M1 -.-> M8
+    M2 -.-> M8
+    M3 -.-> M8
+    M6 -.-> M8
+    M7 -.-> M8
+
+    M1 --> REPOS
+    M2 --> REPOS
+    M3 --> REPOS
+    M4 --> REPOS
+    M5 --> REPOS
+    M6 --> REPOS
+    M7 --> REPOS
+    M8 --> REPOS
+
+    classDef mod fill:#e8eff8,stroke:#1d4a85,color:#12325b
+    classDef fraud fill:#fdf3e2,stroke:#a86a09,color:#7d4e06
+    classDef audit fill:#e6f4ec,stroke:#1a7f4b,color:#12603a
+
+    class M1A,M1B,M1C,M2A,M2B,M3A,M7A,M7B mod
+    class M4A,M4B,M5A,M5B,M6A,M6B fraud
+    class M8A,M8B audit
