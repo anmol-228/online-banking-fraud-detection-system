@@ -10,6 +10,12 @@ application-local.yml
 application-local.properties
 
 # ---------------------------------------------------------------------------
+# Internal refinement working docs — academic framing, never publish
+# ---------------------------------------------------------------------------
+docs/project-refinement/
+PROJECT_REFINEMENT_CONTINUITY.md
+
+# ---------------------------------------------------------------------------
 # Java / Maven
 # ---------------------------------------------------------------------------
 target/

@@ -131,6 +131,11 @@ spellings and the trail stays filterable.
   proxy — see [deployment](deployment.md).
 - The frontend hides navigation by role, but that is a usability measure, not a security control.
   Every endpoint is independently protected on the server.
+- `SecurityHeadersFilter` adds `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: no-referrer`, a strict `Content-Security-Policy: default-src 'none'` (the API
+  returns only JSON, never HTML, so nothing needs to be allow-listed), and
+  `Strict-Transport-Security` — a standalone filter, added and verified without touching
+  authentication, authorization or rate limiting.
 
 ---
 
@@ -144,7 +149,6 @@ Stated plainly rather than omitted:
 | No rate limiting or account lockout | Repeated login attempts are audited but not throttled |
 | No multi-factor authentication at login | The verification challenge applies to risky transfers, not to sign-in |
 | Verification codes are delivered in-app | Not a genuine out-of-band channel; a real system would use SMS or email |
-| No security headers middleware | CSP, HSTS and similar would be added at the reverse proxy |
 | No dependency scanning in CI | Dependency updates are manual |
 | No penetration testing or security audit | The measures above are implemented, not independently verified |
 | Schema managed by `ddl-auto` | Not versioned or reviewable as migrations |

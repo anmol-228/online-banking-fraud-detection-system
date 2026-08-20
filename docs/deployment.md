@@ -52,7 +52,7 @@ npm run preview
 |---|---|---|---|
 | `dev` | H2 in-memory | `create-drop` | Local development; fresh seeded data every start |
 | `test` | H2 in-memory, isolated | `create-drop` | Automated tests |
-| `mysql` | MySQL 8 | `update` | Primary target environment |
+| `mysql` | MySQL 8 | `update` | Intended target environment — configured, not yet connected or exercised |
 
 ```bash
 mvn spring-boot:run                                    # dev

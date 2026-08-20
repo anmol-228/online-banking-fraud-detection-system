@@ -20,6 +20,8 @@
     <properties>
         <java.version>21</java.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <!-- Overridden with -Dconcurrency.excludedGroups= to run the concurrency test on its own. -->
+        <concurrency.excludedGroups>concurrency</concurrency.excludedGroups>
     </properties>
 
     <dependencies>
@@ -91,6 +93,21 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!--
+                        The concurrency test (ConcurrentTransferApiTest) commits real balance
+                        changes and is not safe to run alongside tests that assume the seeded
+                        demo balances are untouched, and a genuinely racy test is not a fit for
+                        a must-pass CI gate until it has proven itself stable. Run it on its own
+                        with:
+                        mvn test -Dgroups=concurrency -Dconcurrency.excludedGroups= -Dtest=ConcurrentTransferApiTest
+                    -->
+                    <excludedGroups>${concurrency.excludedGroups}</excludedGroups>
+                </configuration>
             </plugin>
         </plugins>
     </build>

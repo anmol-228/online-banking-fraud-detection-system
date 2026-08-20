@@ -165,7 +165,7 @@ the reserved-amount sum and the velocity rule filter on.
 |---|---|---|---|
 | `dev` | H2 in-memory | `create-drop` | Local development; fresh seeded dataset every start |
 | `test` | H2 in-memory, isolated | `create-drop` | Automated tests |
-| `mysql` | MySQL 8 | `update` | Primary target environment |
+| `mysql` | MySQL 8 | `update` | Intended target environment — configured, not yet connected or exercised |
 
 `update` is a pragmatic choice for a project at this stage. A production deployment would use
 Flyway or Liquibase so that every schema change is versioned, reviewed and reversible — see the

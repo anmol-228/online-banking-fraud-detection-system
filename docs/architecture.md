@@ -16,9 +16,10 @@ Authentication          JWT filter, per-endpoint role rules, caller resolution
         ↓
 Business logic          accounts, beneficiaries, transactions, cases, disputes, admin
         ↓
-Fraud risk analysis     six deterministic rules → score → LOW / MEDIUM / HIGH
+Fraud risk analysis     eight deterministic rules → score → LOW / MEDIUM / HIGH
         ↓
-Persistence             Spring Data JPA → MySQL / H2
+Persistence             Spring Data JPA → H2 (dev/test, verified) / MySQL 8 (intended target,
+                        configured, not yet exercised)
 ```
 
 Notification, audit logging and error handling are cross-cutting services used by the business
@@ -74,6 +75,17 @@ able to settle a held transfer, so the review module calls the transaction modul
 module knows nothing about cases. The dependency graph stays acyclic, and settlement logic lives in
 exactly one place whether it is reached by a low-risk transfer, a successful verification or an
 analyst approval.
+
+### A named tradeoff: `TransactionService`'s size
+
+`TransactionService` is the largest class in the codebase, at 745 lines. It owns validation, risk
+routing, verification and settlement for a fund transfer — genuinely more responsibility than the
+Single Responsibility Principle would prefer in isolation. This is a deliberate tradeoff, not an
+oversight: both real defects this project found and fixed (see [testing](testing.md)) live inside
+this exact class, which makes it the highest-regression-risk surface in the repository. Splitting it
+now, without a corresponding increase in requirements to justify the split, would trade a
+well-understood, well-tested surface for an unproven one. It stays a single class deliberately, for
+now, and is named here rather than left for a reader to find.
 
 ---
 

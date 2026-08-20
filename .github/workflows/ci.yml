@@ -64,3 +64,19 @@ jobs:
         env:
           VITE_APP_MODE: showcase
         run: npm run build
+
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    # Compares dependency changes in a PR against the GitHub Advisory Database. Only meaningful on
+    # a pull request, since it needs a base to diff against.
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Scan dependency changes for known vulnerabilities
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high

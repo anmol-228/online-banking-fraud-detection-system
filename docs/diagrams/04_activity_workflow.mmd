@@ -11,7 +11,7 @@ flowchart TB
     INIT --> VALID{"Transaction validation<br/>account active, not self-transfer,<br/>available balance sufficient,<br/>not a repeated submission"}
     VALID -- "Fails" --> REJECT["Reject with a clear message<br/>Record TRANSFER_REJECTED"] --> DASH
 
-    VALID -- "Passes" --> RISK["Fraud / risk analysis<br/>six deterministic rules produce a score"]
+    VALID -- "Passes" --> RISK["Fraud / risk analysis<br/>eight deterministic rules produce a score"]
     RISK --> CLASSIFY{"Risk classification"}
 
     CLASSIFY -- "LOW<br/>score 0 to 29" --> APPROVE["Transaction APPROVED"]

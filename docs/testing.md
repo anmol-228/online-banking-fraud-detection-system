@@ -51,6 +51,25 @@ Tests use an isolated in-memory database, so they never touch development data.
 | `AuditCommitApiTest` | 1 | Integration, **non-transactional** | Audit durability regression |
 | `ResilienceApiTest` | 4 | Failure handling | Database outage, unknown address, health endpoint |
 
+### Concurrency
+
+`ConcurrentTransferApiTest` proves the `@Version` optimistic lock on `account`: two genuinely
+simultaneous transfers against the same account are released together with a `CyclicBarrier` (never
+`Thread.sleep`), seeded so both cannot succeed. Exactly one settles; the other is rejected with
+`409 CONCURRENT_UPDATE`; the final balance reflects exactly one settled transfer.
+
+It commits a real balance change, so it is excluded from the default suite above by a JUnit tag
+(`backend/pom.xml`) and run on its own:
+
+```bash
+mvn test -Dgroups=concurrency -Dconcurrency.excludedGroups= -Dtest=ConcurrentTransferApiTest
+```
+
+Run 16 times during development, every run raced genuinely — a `StaleObjectStateException` on the
+losing request — rather than silently serialising, which is the specific failure mode a test like
+this can pass without ever exercising. This proves correctness under a single point of contention,
+not behaviour under sustained load — see the [Limitations](../README.md#limitations) in the README.
+
 ### End-to-end
 
 `scripts/verify_runtime.py` exercises the running API over real HTTP:

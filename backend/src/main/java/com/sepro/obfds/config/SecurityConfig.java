@@ -3,6 +3,7 @@ package com.sepro.obfds.config;
 import com.sepro.obfds.security.JwtAuthenticationFilter;
 import com.sepro.obfds.security.RestAccessDeniedHandler;
 import com.sepro.obfds.security.RestAuthenticationEntryPoint;
+import com.sepro.obfds.security.SecurityHeadersFilter;
 import java.util.Arrays;
 import java.util.List;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -34,16 +35,19 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final SecurityHeadersFilter securityHeadersFilter;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
     private final AppProperties appProperties;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
+            SecurityHeadersFilter securityHeadersFilter,
             RestAuthenticationEntryPoint authenticationEntryPoint,
             RestAccessDeniedHandler accessDeniedHandler,
             AppProperties appProperties) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.securityHeadersFilter = securityHeadersFilter;
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
         this.appProperties = appProperties;
@@ -97,7 +101,8 @@ public class SecurityConfig {
                         .hasAnyRole("BANK_ADMIN", "FRAUD_ANALYST", "OPS_OFFICER")
 
                         .anyRequest().authenticated())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(securityHeadersFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

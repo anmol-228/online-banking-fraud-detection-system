@@ -5,7 +5,7 @@ PASS  FR-02 valid login returns a token | roles=['CUSTOMER']
 PASS  FR-02 invalid login rejected | HTTP 401
 PASS  FR-03 unauthenticated access blocked | HTTP 401
 PASS  FR-04 customer blocked from admin endpoint | HTTP 403
-PASS  FR-01 registration creates a profile | customerNumber=CUST61514848
+PASS  FR-01 registration creates a profile | customerNumber=CUST22751640
 PASS  FR-05 account list returned | 2 accounts
 PASS  FR-06 balance enquiry | balance=150000.0
 PASS  NFR-08 cannot read another customer account | HTTP 404
@@ -13,30 +13,30 @@ PASS  FR-08 seeded beneficiaries listed | 2 payees
 PASS  FR-09 negative amount rejected
 PASS  FR-09 insufficient balance rejected
 PASS  FR-09 same-account transfer rejected
-PASS  FR-07/FR-12 low risk transfer approved | TXN-20260819-2C3902 score=0
+PASS  FR-07/FR-12 low risk transfer approved | TXN-20260820-2257DE score=0
 PASS  NFR-02 source account debited | balance=147500.0
 PASS  NFR-02 destination account credited | balance=122500.0
-PASS  NFR-09 idempotency key returns the same transfer | TXN-20260819-2C3902
+PASS  NFR-09 idempotency key returns the same transfer | TXN-20260820-2257DE
 PASS  NFR-09 duplicate submission rejected | HTTP 409
 PASS  FR-16 customer notified of completed transfer | 1 notifications
-PASS  FR-12 large transfer classified MEDIUM | TXN-20260819-FDB2E6 score=35
+PASS  FR-12 large transfer classified MEDIUM | TXN-20260820-930232 score=35
 PASS  FR-14 medium risk held for verification | PENDING_VERIFICATION
 PASS  NFR-09 held transfer reserves funds without moving them | available=87500.0
 PASS  FR-13 fraud alert raised and visible to analyst | 1 alerts
-PASS  FR-14 verification code delivered to the customer | code=943840
+PASS  FR-14 verification code delivered to the customer | code=786700
 PASS  FR-14 wrong verification code rejected | That verification code is not correct. You have 2 attempt(s) remaining.
 PASS  FR-15 correct code releases the transfer | APPROVED
 PASS  NFR-02 money moves only after verification | balance=87500.0
 PASS  FR-08 new beneficiary added | HTTP 201
-PASS  FR-12 large transfer to a new payee classified HIGH | TXN-20260819-3E6373 score=60 reason=Transfer amount is at or above the high limit of 50000 (+35)
+PASS  FR-12 large transfer to a new payee classified HIGH | TXN-20260820-8E192F score=60 reason=Transfer amount is at or above the high limit of 50000 (+35)
 PASS  FR-15 high risk transfer held for fraud review | PENDING
-PASS  FR-18 fraud case opened automatically | CSE-20260819-C0DFAD
+PASS  FR-18 fraud case opened automatically | CSE-20260820-C855A5
 PASS  FR-18 analyst can take ownership of the case | analyst.fraud
 PASS  FR-15 analyst decision blocks the transfer | BLOCKED
 PASS  FR-22 blocked transfer leaves the balance untouched | balance=87500.0
 PASS  FR-16 customer notified that the transfer was blocked
 PASS  FR-10 transaction history lists all transfers | 3 transactions
-PASS  FR-17 customer can raise a complaint | DSP-20260819-8E0F6A
+PASS  FR-17 customer can raise a complaint | DSP-20260820-A2F9C7
 PASS  FR-17 complaint appears in the operations queue | 1 in queue
 PASS  FR-17 officer resolves the complaint | ops.officer
 PASS  FR-19 administrator lists users | 7 users

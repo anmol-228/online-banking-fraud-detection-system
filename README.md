@@ -35,6 +35,10 @@ transaction — so a transfer can never report success while the account update 
 
 Every consequential action, including rejected ones, is written to an append-only audit trail.
 
+Two real defects were found by running the whole system, not by the unit tests — both root-caused,
+fixed, and covered by a regression test written so each could fail again. Full write-up in
+[Testing](#testing).
+
 ---
 
 ## Key Features
@@ -49,7 +53,7 @@ Every consequential action, including rejected ones, is written to an append-onl
 - In-app notifications and complaint/dispute submission
 
 **Fraud monitoring**
-- Six-rule deterministic risk engine, scored before the transaction is persisted
+- Eight-rule deterministic risk engine, scored before the transaction is persisted
 - Risk classification: **LOW 0–29 · MEDIUM 30–59 · HIGH 60+**
 - Automatic fraud alerts with the exact rules that fired, in words
 - Six-digit verification challenge (hashed, expiring, attempt-limited)
@@ -93,11 +97,11 @@ Authentication & Authorization  (JWT filter, per-endpoint role rules, ownership 
       ↓
 Service / Domain Layer  (accounts, beneficiaries, transactions, cases, disputes, admin)
       ↓
-Fraud Risk Engine  (six deterministic rules → score → LOW / MEDIUM / HIGH)
+Fraud Risk Engine  (eight deterministic rules → score → LOW / MEDIUM / HIGH)
       ↓
 Spring Data JPA
       ↓
-MySQL   (H2 in-memory for local dev and tests)
+H2 in-memory (dev/test, verified)  |  MySQL 8 (intended target, configured, not yet exercised)
 
 Cross-cutting: notification service, append-only audit logging, centralised error handling
 ```
@@ -120,7 +124,8 @@ More detail: [Architecture](docs/architecture.md) · [Database design](docs/data
 **Backend** — Java 21 language level, Spring Boot 3.5, Spring Web, Spring Security, Spring Data JPA,
 Bean Validation, JJWT
 
-**Database** — MySQL 8 (primary target), H2 in-memory (dev and test profiles)
+**Database** — H2 in-memory (dev and test profiles, verified). MySQL 8 is the intended target; the
+`mysql` profile is configured but has not been connected or exercised.
 
 **Tooling** — Maven, npm, GitHub Actions, JUnit 5, MockMvc, Mockito, AssertJ
 
@@ -327,6 +332,9 @@ that counted a transfer against itself, and audit entries lost on rejected paths
 self-invocation bypassed the Spring proxy. Both are fixed and both now have regression tests
 written specifically so they *could* fail again. Details: [Testing](docs/testing.md).
 
+Every requirement traces from specification to implementation to test — see
+[Requirement Traceability](docs/requirement-traceability.md).
+
 ---
 
 ## Security Considerations
@@ -356,7 +364,7 @@ Detail: [Security](docs/security.md)
 - The backend and database are **not** publicly deployed yet.
 - JWTs cannot be revoked before expiry, so disabling a login prevents the next sign-in but does not invalidate a token already issued.
 - Schema is managed by Hibernate `ddl-auto` rather than versioned migrations.
-- Concurrency control is implemented but not load-tested; horizontal scaling is a design property, not a demonstrated one.
+- Concurrency control is implemented and covered by a contention test (two simultaneous transfers against one account, run outside the default suite), but has not been load-tested; horizontal scaling is a design property, not a demonstrated one.
 - Production deployment would require security assessment, load testing and operational hardening that have not been performed.
 
 ---
@@ -368,7 +376,7 @@ Detail: [Security](docs/security.md)
 - Token revocation so disabling a login takes effect immediately
 - A genuine out-of-band channel (SMS/email) for verification codes
 - Containerised deployment and a richer CI/CD pipeline
-- Concurrency tests that drive simultaneous transfers on one account
+- Load-testing concurrency under sustained contention, not just a single race
 - Deeper reporting and analytics over the audit trail
 
 ---
