@@ -15,7 +15,7 @@
     <artifactId>obfds-backend</artifactId>
     <version>1.0.0</version>
     <name>Online Banking and Fraud Detection System - Backend</name>
-    <description>Academic Software Engineering Laboratory project backend</description>
+    <description>Backend API for the Online Banking and Fraud Detection System</description>
 
     <properties>
         <java.version>21</java.version>
