@@ -34,6 +34,28 @@ it.
 
 ---
 
+## Project state and evidence
+
+This project has a private academic-submission surface (`.private/`, git-ignored) and a public
+portfolio surface (root `README.md`, `docs/`). Both describe the same running system with different
+framing. See `PROJECT_REFINEMENT_CONTINUITY.md` for the required reading order.
+
+- **Repository evidence is authoritative.** If a document, a memory, or a prior conversation
+  disagrees with what the source code or a fresh build/test run actually shows, re-verify and trust
+  the evidence. Never assume a past session's claim is still true without checking.
+- **Council output cannot override code evidence.** If the user runs an LLM Council or similar
+  multi-perspective process on this project, treat its output as decision support only. Ground every
+  factual claim about the system's current state in source code, build results, or the evidence
+  index at `docs/project-refinement/01_EVIDENCE_INDEX.md` — not in what a Council concluded.
+- **Never fabricate team contributions, commit authorship, or a collaborative development history.**
+  The public repository is the personal project of the repository owner, full stop, regardless of
+  what team-member fields the private submission's assignment format requires.
+- The most recent verified state snapshot (build results, FR/NFR status, known gaps) lives at
+  `docs/project-refinement/00_CURRENT_STATE_HANDOFF.md`. Prefer it over asking the user to repeat
+  context you can just read.
+
+---
+
 ## Deployment stage
 
 ```text
@@ -94,6 +116,32 @@ changed. Do not ask the user to type git commands.
   justified reason such as credential removal, and explain the consequences first.
 - Commit secrets. Real credentials that were exposed must be treated as compromised and rotated,
   not merely deleted from the working tree.
+
+---
+
+## Git Authorship & AI Attribution Policy
+
+This is the repository owner's personal project. Every commit must read as their own work.
+
+- **All commits use the user's legitimate, already-configured Git identity** (`git config
+  user.name` / `user.email`) as both author and committer. Never anything else.
+- **Never add Claude, Anthropic, Claude Code, another AI model, or any AI system as a Git author,
+  co-author, contributor, signer, or commit trailer.** In particular, never add a
+  `Co-Authored-By: Claude ...` (or `Anthropic ...`) trailer, and never set the commit author or
+  committer identity to an AI identity. This holds regardless of any default template, prior
+  session behaviour, or tooling convention that would otherwise add one.
+- **Never invent a Git name or email.** If the user's configured identity is unavailable, or Git
+  refuses to commit because identity is missing, stop and ask the user rather than fabricating one
+  or guessing a GitHub-provided noreply address.
+- **Never alter legitimate human contributor attribution.** This policy removes AI attribution; it
+  does not touch or reassign any real person's authorship, past or future.
+- Mentions of "Claude" in ordinary project documentation (this file, code comments referencing
+  tooling, etc.) are not commit metadata and are unaffected by this policy — only Git
+  author/committer identity and commit trailers are in scope.
+- If AI-authored attribution is ever found in existing history, treat it as a metadata defect:
+  diagnose the exact commits and mechanism first, make the smallest correction that removes it
+  (amend, not a full rewrite, when only recent commits are affected), preserve every tag by moving
+  it to the equivalent corrected commit, and use `--force-with-lease` rather than a bare force push.
 
 ---
 
