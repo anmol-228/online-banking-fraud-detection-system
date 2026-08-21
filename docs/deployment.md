@@ -88,7 +88,7 @@ Values baked into a frontend build are **public**. No private credential is ever
 
 `.github/workflows/ci.yml` runs on pushes and pull requests to `main`:
 
-- **Backend** — JDK 21, cached Maven dependencies, `mvn clean verify` (compiles and runs all 81 tests)
+- **Backend** — JDK 21, cached Maven dependencies, `mvn clean verify` (compiles and runs all 82 tests)
 - **Frontend** — Node 20, `npm ci` for a reproducible install, `npm run build`
 
 `.github/workflows/pages.yml` builds the showcase and deploys it to GitHub Pages using the official

@@ -26,8 +26,8 @@ presented as a single matrix rather than as separate claims.
 | FR-11 | Monitor transactions for suspicious activity | `FraudRiskService.evaluate()` — eight rules | `FraudRiskServiceTest` | Complete |
 | FR-12 | Assign a risk classification | `FraudRiskService.classify()` | `FraudRiskServiceTest` | Complete |
 | FR-13 | Generate an alert for suspicious transactions | `FraudAlertService` · `AlertsPage.jsx` | `TransactionWorkflowApiTest` | Complete |
-| FR-14 | Request additional verification | `holdForVerification()`, `submitVerification()` | `TransactionWorkflowApiTest` | Complete |
-| FR-15 | Approve, hold or block per review | `FraudCaseService.decide()` · `CaseDetailPage.jsx` | `FraudReviewApiTest` | Complete |
+| FR-14 | Request additional verification | `holdForVerification()`, `submitVerification()` | `TransactionWorkflowApiTest` · `VerificationAttemptPersistenceApiTest` | Complete |
+| FR-15 | Approve, hold or block per review | `FraudCaseService.decide()` · `CaseDetailPage.jsx` | `FraudReviewApiTest` · `VerificationAttemptPersistenceApiTest` | Complete |
 | FR-16 | Notify customers of important events | `NotificationService` · `NotificationsPage.jsx` | `TransactionWorkflowApiTest` | Complete |
 | FR-17 | Submit a complaint or dispute | `DisputeService` · `DisputesPage.jsx` | `DisputeApiTest` | Complete |
 | FR-18 | Review suspicious transactions and fraud cases | `FraudCaseService`, `FraudAlertService` | `FraudReviewApiTest` | Complete |
@@ -77,6 +77,7 @@ principle, but a second instance was never actually started.
 | `AuditApiTest` | FR-20, FR-04, NFR-10 |
 | `AuditCommitApiTest` | FR-20, NFR-10 |
 | `ResilienceApiTest` | NFR-01, NFR-02, NFR-03, NFR-07 |
+| `VerificationAttemptPersistenceApiTest` | FR-14, FR-15, NFR-01 |
 | `ConcurrentTransferApiTest` | NFR-02, NFR-09 — run separately from the default suite; see [testing](testing.md#concurrency) |
 
 No test exists that does not trace to a requirement, and no requirement lacks a test.

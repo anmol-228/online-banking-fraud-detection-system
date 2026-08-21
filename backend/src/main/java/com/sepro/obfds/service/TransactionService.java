@@ -434,8 +434,20 @@ public class TransactionService {
     // Additional verification by the customer
     // ------------------------------------------------------------------
 
-    /** Submits the verification code for a held transfer (FR-14, FR-15). */
-    @Transactional
+    /**
+     * Submits the verification code for a held transfer (FR-14, FR-15).
+     *
+     * <p>{@code noRollbackFor} is essential rather than decorative here. Every failure path in
+     * this method reports itself by throwing a {@link BusinessRuleException}, and three of them
+     * must leave a permanent record behind first: the incremented attempt counter, the FAILED
+     * verification status, and the block applied once the attempts run out. Under the default
+     * rollback-on-runtime-exception rule those writes were discarded along with the exception, so
+     * the attempt counter never advanced past zero, the three-attempt limit never fired, and a
+     * held transfer could be guessed at indefinitely. The exceptions raised before any write
+     * (INVALID_STATE, NO_PENDING_VERIFICATION) simply commit an empty transaction, so exempting
+     * the whole type is safe.</p>
+     */
+    @Transactional(noRollbackFor = BusinessRuleException.class)
     public TransactionResponse submitVerification(String reference, String submittedCode) {
         Customer customer = currentUserService.requireCustomer();
         String username = currentUserService.requireUsername();

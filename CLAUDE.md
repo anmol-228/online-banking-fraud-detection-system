@@ -161,7 +161,7 @@ scripts/     verify_runtime.py — end-to-end check against a running instance
 ## Build and verify
 
 ```bash
-cd backend  && mvn clean package     # 81 tests must pass
+cd backend  && mvn clean package     # 82 tests must pass
 cd frontend && npm run build         # api mode
 cd frontend && VITE_APP_MODE=showcase npm run build   # showcase mode
 python scripts/verify_runtime.py     # needs a freshly started backend

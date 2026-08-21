@@ -6,6 +6,10 @@
  * produce. Keeping the numbers in one obvious block makes that correspondence easy to check.
  *
  * The engine is deterministic and rule-based. It uses no machine learning.
+ *
+ * Eight scored rules, evaluated by six checks: two of the checks pick between a pair of
+ * mutually exclusive rules (VERY_HIGH_AMOUNT or HIGH_AMOUNT; UNREGISTERED_PAYEE or
+ * NEW_BENEFICIARY) rather than raising one unconditionally. Maximum reachable score 140.
  */
 
 const POINTS = {
@@ -60,7 +64,7 @@ export function evaluateRisk({
   const value = Number(amount);
   const at = now instanceof Date ? now : new Date(now);
 
-  // Rule 1 — an unusually large transfer.
+  // Amount check — raises VERY_HIGH_AMOUNT or HIGH_AMOUNT, never both.
   if (value >= FRAUD_CONFIG.veryHighAmount) {
     factors.push({
       code: 'VERY_HIGH_AMOUNT',
@@ -75,7 +79,8 @@ export function evaluateRisk({
     });
   }
 
-  // Rule 2 — a payee added very recently, or one that was never saved at all.
+  // Beneficiary check — raises UNREGISTERED_PAYEE when the payee was never saved, otherwise
+  // NEW_BENEFICIARY when it was saved very recently.
   if (!beneficiary) {
     factors.push({
       code: 'UNREGISTERED_PAYEE',
@@ -93,7 +98,7 @@ export function evaluateRisk({
     }
   }
 
-  // Rule 3 — several transfers in a short period. The transfer being assessed is not counted
+  // Velocity check — raises RAPID_TRANSFERS. The transfer being assessed is not counted
   // against itself, which is why the assessment runs before the transaction is stored.
   const windowStart = at.getTime() - FRAUD_CONFIG.velocityMinutes * 60000;
   const recentCount = recentTransfers.filter(
@@ -107,7 +112,7 @@ export function evaluateRisk({
     });
   }
 
-  // Rule 4 — a transfer that would take most of the balance.
+  // Balance check — raises BALANCE_DRAIN when the transfer would take most of the balance.
   if (account.balance > 0 && value > account.balance * FRAUD_CONFIG.balanceFraction) {
     factors.push({
       code: 'BALANCE_DRAIN',
@@ -118,7 +123,7 @@ export function evaluateRisk({
     });
   }
 
-  // Rule 5 — a transfer made during the configured unusual-hour window.
+  // Hour check — raises UNUSUAL_HOUR inside the configured unusual-activity window.
   const hour = at.getHours();
   if (hour >= FRAUD_CONFIG.oddHourStart && hour < FRAUD_CONFIG.oddHourEnd) {
     factors.push({
@@ -128,7 +133,7 @@ export function evaluateRisk({
     });
   }
 
-  // Rule 6 — the customer has recently failed verification on other transfers.
+  // Verification-history check — raises REPEATED_FAILED_VERIFICATION after recent failures.
   if (failedVerifications >= 2) {
     factors.push({
       code: 'REPEATED_FAILED_VERIFICATION',

@@ -33,7 +33,7 @@ flowchart TB
         end
 
         subgraph FRAUD["Fraud Detection and Risk Analysis Layer"]
-            RULES["FraudRiskService<br/>6 deterministic rules -> score -> LOW / MEDIUM / HIGH"]
+            RULES["FraudRiskService<br/>eight deterministic rules -> score -> LOW / MEDIUM / HIGH"]
         end
 
         subgraph CROSS["Cross-cutting"]
@@ -47,7 +47,7 @@ flowchart TB
         end
     end
 
-    DB[("Database<br/>MySQL 8 (project environment)<br/>H2 in-memory (dev and test)")]
+    DB[("Database<br/>H2 in-memory (dev and test, verified)<br/>MySQL 8 (intended target, not yet exercised)")]
 
     PRESENT -- "HTTPS / JSON + Bearer token" --> FILTER
     FILTER --> SECCFG --> CTRL

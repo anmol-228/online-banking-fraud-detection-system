@@ -169,6 +169,14 @@ status, body = call("POST", f"/api/transactions/{t2['reference']}/verify", custo
 check("FR-14 wrong verification code rejected",
       status == 422 and body["code"] == "INVALID_VERIFICATION_CODE", body["message"])
 
+# The rejection message alone is not evidence: it is computed in memory and was, at one point,
+# reported correctly while the underlying counter was rolled back with the exception that
+# reported it. Re-read the stored request so the attempt is proven to have been written down.
+status, vstate = call("GET", f"/api/transactions/{t2['reference']}/verification", customer)
+check("FR-14 the rejected attempt is actually recorded, not just reported",
+      status == 200 and vstate["attempts"] == 1 and vstate["attemptsRemaining"] == 2,
+      f"attempts={vstate.get('attempts')} remaining={vstate.get('attemptsRemaining')}")
+
 status, verified = call("POST", f"/api/transactions/{t2['reference']}/verify", customer, {"code": code})
 check("FR-15 correct code releases the transfer",
       status == 200 and verified["status"] == "APPROVED", verified["status"])

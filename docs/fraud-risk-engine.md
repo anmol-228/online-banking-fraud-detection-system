@@ -42,6 +42,17 @@ Maximum reachable score: **140**.
 
 The amount rules are mutually exclusive — a transfer scores either 50 or 35, never both.
 
+### Eight rules, six methods
+
+Reading `FraudRiskService` you will count six private methods, not eight. The two counts describe
+different things and both are correct. The table above counts **scored rules**: one row per risk
+factor that can be raised, each with its own code and its own point value. The code groups those
+eight rules into six checks, because two of the checks choose between a mutually exclusive pair
+rather than raising a factor unconditionally — the amount check raises `VERY_HIGH_AMOUNT` *or*
+`HIGH_AMOUNT`, and the beneficiary check raises `UNREGISTERED_PAYEE` *or* `NEW_BENEFICIARY`.
+Eight is the number that matters when explaining the scoring model, so it is the number this
+project quotes.
+
 ---
 
 ## 3. Classification

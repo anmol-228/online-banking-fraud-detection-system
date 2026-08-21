@@ -35,9 +35,10 @@ transaction — so a transfer can never report success while the account update 
 
 Every consequential action, including rejected ones, is written to an append-only audit trail.
 
-Two real defects were found by running the whole system, not by the unit tests — both root-caused,
-fixed, and covered by a regression test written so each could fail again. Full write-up in
-[Testing](#testing).
+Three real defects were found by running the whole system, not by the unit tests — each
+root-caused, fixed, and covered by a regression test written so it could fail again. The third
+was found by re-checking the lesson the second one taught, which is the more useful half of the
+story. Full write-up in [Testing](#testing).
 
 ---
 
@@ -311,8 +312,9 @@ cd backend  && mvn clean package     # compile, run all tests, build the JAR
 cd frontend && npm run build         # production build
 ```
 
-**81 automated tests across 11 classes**, covering unit, integration, security and failure-handling
-levels:
+**82 automated backend tests across 12 classes**, covering unit, integration, security and
+failure-handling levels. The figure is backend-only — there is no automated frontend test suite;
+the React application is verified by building it in both modes and by manual walkthrough:
 
 | Level | Focus |
 |---|---|
@@ -327,10 +329,14 @@ There is also an end-to-end script that exercises the **running** application ov
 python scripts/verify_runtime.py     # expects a freshly started backend
 ```
 
-Two real defects were found by running the system rather than by the unit tests — a velocity rule
-that counted a transfer against itself, and audit entries lost on rejected paths because a
-self-invocation bypassed the Spring proxy. Both are fixed and both now have regression tests
-written specifically so they *could* fail again. Details: [Testing](docs/testing.md).
+Three real defects were found by running the system rather than by the unit tests — a velocity
+rule that counted a transfer against itself; audit entries lost on rejected paths because a
+self-invocation bypassed the Spring proxy; and failed verification attempts that were never
+counted, because the attempt was recorded and then rolled back by the very exception that
+reported it. All three are fixed and each has a regression test written specifically so it
+*could* fail again. The third is the instructive one: it was hidden by the same test-managed
+transaction that hid the second, in a neighbouring code path, and survived the write-up of that
+lesson. Details: [Testing](docs/testing.md).
 
 Every requirement traces from specification to implementation to test — see
 [Requirement Traceability](docs/requirement-traceability.md).

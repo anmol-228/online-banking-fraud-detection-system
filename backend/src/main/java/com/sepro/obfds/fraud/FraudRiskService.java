@@ -32,6 +32,14 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Score bands: LOW 0-29, MEDIUM 30-59, HIGH 60 and above. All thresholds come from
  * configuration so they can be tuned without changing code (NFR-07).</p>
+ *
+ * <p><strong>Eight scored rules, evaluated by six checks.</strong> The documentation counts the
+ * rules the way the scoring model does — one rule per risk factor that can be raised, each with
+ * its own code and its own point value, which is what {@code POINTS_*} below enumerates. Two of
+ * the six checks choose between a pair of mutually exclusive rules rather than raising one
+ * unconditionally: the amount check raises either VERY_HIGH_AMOUNT or HIGH_AMOUNT, and the
+ * beneficiary check raises either UNREGISTERED_PAYEE or NEW_BENEFICIARY. Six methods, eight
+ * rules, and a maximum reachable score of 140.</p>
  */
 @Service
 public class FraudRiskService {
@@ -98,7 +106,7 @@ public class FraudRiskService {
         return RiskLevel.LOW;
     }
 
-    /** Rule 1: an unusually large transfer. */
+    /** Amount check — raises VERY_HIGH_AMOUNT or HIGH_AMOUNT, never both. */
     private void addAmountFactor(List<RiskFactor> factors, BigDecimal amount) {
         if (amount.compareTo(config.getVeryHighAmount()) >= 0) {
             factors.add(new RiskFactor(
@@ -113,7 +121,10 @@ public class FraudRiskService {
         }
     }
 
-    /** Rule 2: a payee that was added very recently, or one that was never saved at all. */
+    /**
+     * Beneficiary check — raises UNREGISTERED_PAYEE when the payee was never saved, otherwise
+     * NEW_BENEFICIARY when it was saved very recently.
+     */
     private void addBeneficiaryFactor(List<RiskFactor> factors, Beneficiary beneficiary, Instant now) {
         if (beneficiary == null) {
             factors.add(new RiskFactor(
@@ -131,7 +142,7 @@ public class FraudRiskService {
         }
     }
 
-    /** Rule 3: several transfers in a short period. */
+    /** Velocity check — raises RAPID_TRANSFERS after several transfers in a short period. */
     private void addVelocityFactor(List<RiskFactor> factors, Account sourceAccount, Instant now) {
         Long customerId = sourceAccount.getCustomer().getId();
         Instant windowStart = now.minus(Duration.ofMinutes(config.getVelocityMinutes()));
@@ -147,7 +158,7 @@ public class FraudRiskService {
         }
     }
 
-    /** Rule 4: a transfer that would take most of the balance. */
+    /** Balance check — raises BALANCE_DRAIN when the transfer would take most of the balance. */
     private void addBalanceDrainFactor(
             List<RiskFactor> factors, Account sourceAccount, BigDecimal amount) {
 
@@ -166,7 +177,7 @@ public class FraudRiskService {
         }
     }
 
-    /** Rule 5: a transfer made during the configured unusual-hour window. */
+    /** Hour check — raises UNUSUAL_HOUR inside the configured unusual-activity window. */
     private void addUnusualHourFactor(List<RiskFactor> factors, Instant now) {
         int hour = now.atZone(zoneId).getHour();
         if (hour >= config.getOddHourStart() && hour < config.getOddHourEnd()) {
@@ -177,7 +188,7 @@ public class FraudRiskService {
         }
     }
 
-    /** Rule 6: the customer has recently failed verification on other transfers. */
+    /** Verification-history check — raises REPEATED_FAILED_VERIFICATION after recent failures. */
     private void addRepeatedFailedVerificationFactor(
             List<RiskFactor> factors, Account sourceAccount, Instant now) {
 
