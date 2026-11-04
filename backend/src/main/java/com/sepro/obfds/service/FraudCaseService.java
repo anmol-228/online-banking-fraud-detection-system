@@ -9,6 +9,7 @@ import com.sepro.obfds.entity.CaseStatus;
 import com.sepro.obfds.entity.FraudAlert;
 import com.sepro.obfds.entity.FraudCase;
 import com.sepro.obfds.entity.Transaction;
+import com.sepro.obfds.entity.TransactionStatus;
 import com.sepro.obfds.exception.BusinessRuleException;
 import com.sepro.obfds.exception.ResourceNotFoundException;
 import com.sepro.obfds.repository.FraudAlertRepository;
@@ -90,7 +91,20 @@ public class FraudCaseService {
         Transaction transaction = fraudCase.getAlert().getTransaction();
         boolean approve = "APPROVE".equalsIgnoreCase(request.decision());
 
-        if (approve) {
+        if (transaction.getStatus() == TransactionStatus.BLOCKED) {
+            // A case can be opened for a transfer that is already final: three failed verification
+            // codes block the transfer and escalate the alert (FR-14, FR-18). Such a case is a
+            // review of an outcome that already happened. The analyst can confirm the block to
+            // close it; the transfer itself is final and is never changed here (FR-22), so it
+            // cannot be released by approving the case.
+            if (approve) {
+                throw new BusinessRuleException(
+                        "INVALID_STATE",
+                        "This transfer was already blocked and cannot be released. "
+                                + "Confirm the block to close this case.");
+            }
+            fraudCase.setStatus(CaseStatus.RESOLVED_BLOCKED);
+        } else if (approve) {
             transactionService.releaseAfterReview(transaction, request.remarks(), username, authorities);
             fraudCase.setStatus(CaseStatus.RESOLVED_APPROVED);
         } else {

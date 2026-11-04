@@ -35,7 +35,7 @@ Tests use an isolated in-memory database, so they never touch development data.
 
 ## Results
 
-**82 tests, 0 failures, 0 errors, 0 skipped.** All of them are backend tests — see
+**84 tests, 0 failures, 0 errors, 0 skipped.** All of them are backend tests — see
 [What is deliberately not covered](#what-is-deliberately-not-covered) below.
 
 | Test class | Tests | Level | Focus |
@@ -45,7 +45,7 @@ Tests use an isolated in-memory database, so they never touch development data.
 | `BeneficiaryApiTest` | 5 | Integration | Add, duplicate rejection, own-account rejection, removal |
 | `FraudRiskServiceTest` | 10 | **Unit** | Each rule in isolation, score bands, determinism |
 | `TransactionWorkflowApiTest` | 20 | Integration | Validation, transfers, risk routing, verification, duplicates, history |
-| `FraudReviewApiTest` | 7 | Integration + security | Case review, assignment, decisions, double-decision guard |
+| `FraudReviewApiTest` | 9 | Integration + security | Case review, assignment, decisions, double-decision guard, closing a case opened by failed verification |
 | `DisputeApiTest` | 6 | Integration + security | Complaint lifecycle and ownership |
 | `AdministrationApiTest` | 8 | Integration + security | Role management, self-lockout guards, reports |
 | `AuditApiTest` | 5 | Integration | Audit content and row shape |
@@ -218,7 +218,7 @@ laptop with the seeded dataset:
 | Application start-up | ~4–5 seconds |
 | Demo data seeding | Under 0.5 seconds |
 | Typical API calls | No noticeable delay; the 45-check script completes in seconds |
-| Full test suite | ~20 seconds for 82 tests including application context start-up |
+| Full test suite | ~20 seconds for 84 tests including application context start-up |
 
 Design measures relevant under real load: indexes on the columns the hot queries filter on,
 pagination on transaction history and the audit trail, and stateless authentication so more

@@ -312,7 +312,7 @@ cd backend  && mvn clean package     # compile, run all tests, build the JAR
 cd frontend && npm run build         # production build
 ```
 
-**82 automated backend tests across 12 classes**, covering unit, integration, security and
+**84 automated backend tests across 12 classes**, covering unit, integration, security and
 failure-handling levels. The figure is backend-only — there is no automated frontend test suite;
 the React application is verified by building it in both modes and by manual walkthrough:
 

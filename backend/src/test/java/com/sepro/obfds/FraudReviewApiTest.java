@@ -13,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.ResultActions;
 
 /**
  * Fraud analyst review tests.
@@ -68,6 +69,102 @@ class FraudReviewApiTest extends AbstractApiTest {
                 .getResponse()
                 .getContentAsString();
         return parse(response).get(0).get("reference").asText();
+    }
+
+    /** Medium risk transfer whose verification is then failed three times, which blocks it. */
+    private String blockTransferByFailedVerification(String customerToken) throws Exception {
+        Map<String, Object> transfer = new LinkedHashMap<>();
+        transfer.put("sourceAccountNumber", CUSTOMER_ACCOUNT);
+        transfer.put("destinationAccountNumber", ESTABLISHED_BENEFICIARY_ACCOUNT);
+        transfer.put("amount", "60000.00");
+        transfer.put("description", "Verification will fail");
+
+        String reference = parse(mockMvc
+                        .perform(post("/api/transactions/transfer")
+                                .header(HttpHeaders.AUTHORIZATION, customerToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json(transfer)))
+                        .andExpect(status().isCreated())
+                        .andExpect(jsonPath("$.status").value("PENDING_VERIFICATION"))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString())
+                .get("reference")
+                .asText();
+
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            mockMvc.perform(post("/api/transactions/" + reference + "/verify")
+                            .header(HttpHeaders.AUTHORIZATION, customerToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json(Map.of("code", "000000"))))
+                    .andExpect(status().isUnprocessableEntity());
+        }
+        mockMvc.perform(get("/api/transactions/" + reference).header(HttpHeaders.AUTHORIZATION, customerToken))
+                .andExpect(jsonPath("$.status").value("BLOCKED"));
+        return reference;
+    }
+
+    private ResultActions decide(String analystToken, String caseReference, String decision, String remarks)
+            throws Exception {
+        Map<String, String> body = new LinkedHashMap<>();
+        body.put("decision", decision);
+        body.put("remarks", remarks);
+        return mockMvc.perform(post("/api/fraud-cases/" + caseReference + "/decision")
+                .header(HttpHeaders.AUTHORIZATION, analystToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(body)));
+    }
+
+    @Test
+    @DisplayName("FR-18 A case opened by repeated failed verification can be closed by confirming the block")
+    void failedVerificationCaseCanBeClosedByConfirmingTheBlock() throws Exception {
+        String customerToken = customerToken();
+        String reference = blockTransferByFailedVerification(customerToken);
+        String analystToken = analystToken();
+        String caseReference = firstCaseReference(analystToken);
+
+        // The case exists for review while the transfer is already final.
+        mockMvc.perform(get("/api/fraud-cases/" + caseReference).header(HttpHeaders.AUTHORIZATION, analystToken))
+                .andExpect(jsonPath("$.transactionReference").value(reference))
+                .andExpect(jsonPath("$.status").value("OPEN"))
+                .andExpect(jsonPath("$.transactionStatus").value("BLOCKED"));
+
+        // Before the fix this answered 422 INVALID_STATE and the case could never be closed.
+        decide(analystToken, caseReference, "BLOCK", "Three failed codes; block confirmed after review.")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RESOLVED_BLOCKED"))
+                .andExpect(jsonPath("$.decidedBy").value(ANALYST_USERNAME))
+                .andExpect(jsonPath("$.transactionStatus").value("BLOCKED"));
+
+        // Money is untouched and nothing stays reserved.
+        mockMvc.perform(get("/api/accounts/" + CUSTOMER_ACCOUNT + "/balance")
+                        .header(HttpHeaders.AUTHORIZATION, customerToken))
+                .andExpect(jsonPath("$.balance").value(150000.00))
+                .andExpect(jsonPath("$.availableBalance").value(150000.00));
+
+        // The closed case cannot be decided a second time.
+        decide(analystToken, caseReference, "BLOCK", "Second attempt")
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("CASE_ALREADY_RESOLVED"));
+    }
+
+    @Test
+    @DisplayName("FR-22 A transfer blocked by failed verification cannot be released by approving its case")
+    void failedVerificationCaseCannotReleaseTheBlockedTransfer() throws Exception {
+        String customerToken = customerToken();
+        String reference = blockTransferByFailedVerification(customerToken);
+        String analystToken = analystToken();
+        String caseReference = firstCaseReference(analystToken);
+
+        decide(analystToken, caseReference, "APPROVE", "Trying to release a blocked transfer")
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("INVALID_STATE"));
+
+        mockMvc.perform(get("/api/transactions/" + reference).header(HttpHeaders.AUTHORIZATION, customerToken))
+                .andExpect(jsonPath("$.status").value("BLOCKED"));
+        mockMvc.perform(get("/api/accounts/" + CUSTOMER_ACCOUNT + "/balance")
+                        .header(HttpHeaders.AUTHORIZATION, customerToken))
+                .andExpect(jsonPath("$.balance").value(150000.00));
     }
 
     @Test
