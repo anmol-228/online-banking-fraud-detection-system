@@ -28,7 +28,7 @@ export default function ShowcaseBanner() {
       <span className="showcase-banner__tag">Demo</span>
       <span className="showcase-banner__text">
         Frontend showcase running on simulated data — no backend is connected and no real money is
-        involved. The full Spring Boot and MySQL implementation is in the{' '}
+        involved. The full Spring Boot and database-backed implementation is in the{' '}
         <a href={REPOSITORY_URL} target="_blank" rel="noreferrer">
           repository
         </a>

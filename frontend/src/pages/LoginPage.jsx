@@ -118,7 +118,7 @@ export default function LoginPage() {
             <p>
               <strong>Frontend showcase.</strong> This live demo runs entirely in your browser on
               simulated data. It is not connected to a real financial institution and no real money
-              is involved. The complete Spring Boot backend and MySQL implementation is in the{' '}
+              is involved. The complete Spring Boot backend and database-backed implementation is in the{' '}
               <a href={REPOSITORY_URL} target="_blank" rel="noreferrer">
                 GitHub repository
               </a>
