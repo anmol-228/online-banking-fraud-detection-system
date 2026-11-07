@@ -4,6 +4,12 @@
 # A simulated banking platform for development and demonstration.
 # No real banking credentials appear in this file. Every value can be overridden
 # by an environment variable, so nothing secret has to be committed.
+#
+# Fail-closed defaults: with no profile-specific help, a run has NO signing secret,
+# seeds NO users and accepts NO registrations. The convenient values (a published
+# development secret, the demo passwords, open registration) are configured only for the
+# `dev` profile below and for the loopback-only `localdemo` profile (application-localdemo.yml);
+# StartupSafetyGuard refuses them anywhere reachable from outside.
 # =============================================================================
 
 spring:
@@ -18,9 +24,26 @@ spring:
         format_sql: false
   jackson:
     default-property-inclusion: non_null
+  flyway:
+    # Never run by the application. The schema is changed only by the separate migrator
+    # (com.sepro.obfds.migrate.Migrator) using DDL credentials; see docs/operations.md.
+    enabled: false
+  datasource:
+    hikari:
+      # Pool size and Tomcat threads are a pair. A request can hold two connections at once (the
+      # business transaction plus an audit write that runs in its own transaction), so the
+      # worker thread count must not exceed half of the pool. StartupSafetyGuard enforces it.
+      maximum-pool-size: ${OBFDS_DB_POOL_SIZE:10}
+      minimum-idle: 2
+      connection-timeout: ${OBFDS_DB_CONNECTION_TIMEOUT_MS:20000}
 
 server:
   port: ${SERVER_PORT:8080}
+  tomcat:
+    threads:
+      max: ${OBFDS_TOMCAT_THREADS:5}
+      min-spare: 2
+    accept-count: 100
   error:
     # Never expose stack traces or internal messages to a browser (NFR-01).
     include-message: never
@@ -35,6 +58,14 @@ management:
   endpoint:
     health:
       show-details: never
+      probes:
+        enabled: true
+      group:
+        # Ready means "can serve a request": the database answers. Liveness stays independent
+        # of the database, so a hosting platform restarts a wedged process and not a healthy
+        # one that is merely waiting for its database to wake up.
+        readiness:
+          include: readinessState,db
 
 logging:
   level:
@@ -46,11 +77,32 @@ logging:
 # -----------------------------------------------------------------------------
 obfds:
   seed-demo-data: ${OBFDS_SEED_DEMO_DATA:true}
+  seed:
+    # none | bootstrap-env | demo-fixed
+    mode: ${OBFDS_SEED_MODE:none}
+    bootstrap:
+      admin-password: ${OBFDS_BOOTSTRAP_ADMIN_PASSWORD:}
+      analyst-password: ${OBFDS_BOOTSTRAP_ANALYST_PASSWORD:}
+      officer-password: ${OBFDS_BOOTSTRAP_OFFICER_PASSWORD:}
+      sysadmin-password: ${OBFDS_BOOTSTRAP_SYSADMIN_PASSWORD:}
+      customer-password: ${OBFDS_BOOTSTRAP_CUSTOMER_PASSWORD:}
+  registration:
+    # closed | invite | open
+    mode: ${OBFDS_REGISTRATION_MODE:closed}
+    invite-code: ${OBFDS_INVITE_CODE:}
+    max-customers: ${OBFDS_REGISTRATION_MAX_CUSTOMERS:0}
+  security:
+    login-max-failures: ${OBFDS_LOGIN_MAX_FAILURES:5}
+    login-lockout-seconds: ${OBFDS_LOGIN_LOCKOUT_SECONDS:30}
+    login-max-per-minute-per-address: ${OBFDS_LOGIN_MAX_PER_MINUTE:60}
   jwt:
-    secret: ${OBFDS_JWT_SECRET:change-me-local-dev-secret-key-min-32-chars}
+    # No default here on purpose. Set OBFDS_JWT_SECRET (>= 32 random characters), or for a
+    # loopback-only local run let the `localdemo` profile keep a random per-install secret in a file.
+    secret: ${OBFDS_JWT_SECRET:}
+    secret-file: ${OBFDS_JWT_SECRET_FILE:}
     expiry-minutes: ${OBFDS_JWT_EXPIRY_MINUTES:120}
   cors:
-    allowed-origins: ${OBFDS_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+    allowed-origins: ${OBFDS_CORS_ALLOWED_ORIGINS:}
   verification:
     code-validity-minutes: 10
     max-attempts: 3
@@ -62,6 +114,8 @@ obfds:
     velocity-count: ${OBFDS_FRAUD_VELOCITY_COUNT:3}
     velocity-minutes: ${OBFDS_FRAUD_VELOCITY_MINUTES:10}
     balance-fraction: 0.80
+    # The clock the unusual-hour window is read in (a named zone, never the machine default).
+    zone: ${OBFDS_FRAUD_ZONE:Asia/Kolkata}
     odd-hour-start: 0
     odd-hour-end: 5
     medium-score-threshold: 30
@@ -69,15 +123,16 @@ obfds:
 
 ---
 # =============================================================================
-# dev profile — H2 in-memory database, seeded demo data.
-# This is the profile used for local development and demonstrations.
+# dev profile — H2 in-memory database, seeded demo data, loopback use only.
+# This is the profile used for local development and for the browser-based demo on a
+# developer machine. The published development secret exists ONLY here.
 # =============================================================================
 spring:
   config:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:h2:mem:obfds;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:obfds;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;LOCK_TIMEOUT=10000
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
@@ -85,11 +140,23 @@ spring:
     hibernate:
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.H2Dialect
+server:
+  address: 127.0.0.1
+obfds:
+  seed:
+    mode: demo-fixed
+  registration:
+    mode: open
+  jwt:
+    secret: ${OBFDS_JWT_SECRET:change-me-local-dev-secret-key-min-32-chars}
+  cors:
+    allowed-origins: ${OBFDS_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
 
 ---
 # =============================================================================
-# mysql profile — MySQL 8, the intended project environment.
-# Start with: mvn spring-boot:run -Dspring-boot.run.profiles=mysql
+# mysql profile — MySQL 8 connection settings.
+# Combine it with `localdemo` (this machine only) or `public` (a hosted deployment); on its
+# own it has no secret, no users and no registration, and will not start without them.
 # =============================================================================
 spring:
   config:
@@ -102,7 +169,8 @@ spring:
     password: ${MYSQL_PASSWORD:}
   jpa:
     hibernate:
-      # `update` keeps the schema in step with the entities during development.
-      # A real deployment would use a migration tool instead (see docs/12_DEPLOYMENT.md).
-      ddl-auto: update
+      # The runtime never changes the schema: Hibernate only checks that the tables and columns
+      # match the entities, and SchemaVersionCheck that the migrator has reached this build's
+      # version. Create or upgrade the schema with the migrator.
+      ddl-auto: validate
     database-platform: org.hibernate.dialect.MySQLDialect

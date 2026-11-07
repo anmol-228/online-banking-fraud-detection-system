@@ -27,4 +27,6 @@ public record TransactionResponse(
         boolean verificationRequired,
         String initiatedBy,
         Instant createdAt,
-        Instant completedAt) {}
+        Instant completedAt,
+        Instant reviewDueAt,
+        String customerResponse) {}

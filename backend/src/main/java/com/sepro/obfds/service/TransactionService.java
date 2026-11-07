@@ -23,6 +23,7 @@ import com.sepro.obfds.entity.VerificationRequest;
 import com.sepro.obfds.entity.VerificationStatus;
 import com.sepro.obfds.exception.BusinessRuleException;
 import com.sepro.obfds.exception.DuplicateTransactionException;
+import com.sepro.obfds.exception.IdempotencyKeyReusedException;
 import com.sepro.obfds.exception.ResourceNotFoundException;
 import com.sepro.obfds.fraud.FraudRiskService;
 import com.sepro.obfds.fraud.RiskEvaluation;
@@ -35,6 +36,7 @@ import com.sepro.obfds.repository.TransactionRepository;
 import com.sepro.obfds.repository.VerificationRequestRepository;
 import com.sepro.obfds.security.CurrentUserService;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -45,6 +47,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -80,6 +83,13 @@ public class TransactionService {
     private final AuditService auditService;
     private final PasswordEncoder passwordEncoder;
     private final AppProperties.Verification verificationConfig;
+    private final RowLocker rowLocker;
+    private final Clock clock;
+    private final int reviewTargetHours;
+
+    /** Reason recorded when a hold times out; also what the customer sees for it. */
+    static final String EXPIRED_REASON =
+            "Verification code expired before it was used; the transfer was not sent.";
 
     /** Window used to recognise the same transfer being submitted twice (TC-14). */
     private static final Duration DUPLICATE_WINDOW = Duration.ofSeconds(60);
@@ -98,7 +108,12 @@ public class TransactionService {
             ReferenceGenerator referenceGenerator,
             AuditService auditService,
             PasswordEncoder passwordEncoder,
-            AppProperties appProperties) {
+            AppProperties appProperties,
+            RowLocker rowLocker,
+            Clock clock) {
+        this.rowLocker = rowLocker;
+        this.clock = clock;
+        this.reviewTargetHours = appProperties.getReview().getTargetHours();
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
         this.beneficiaryRepository = beneficiaryRepository;
@@ -119,25 +134,48 @@ public class TransactionService {
     // Initiating a transfer
     // ------------------------------------------------------------------
 
-    /** Initiates a fund transfer (FR-07). */
-    @Transactional
+    /**
+     * Initiates a fund transfer (FR-07).
+     *
+     * <p>The method is a single critical section per source account:</p>
+     * <ol>
+     *   <li>an idempotency key that is already known is answered without touching any lock;</li>
+     *   <li>the source account (and an internal destination) is write-locked, lowest id first;</li>
+     *   <li>the key is checked <em>again</em>, because an identical request may have committed
+     *       while this one waited for the lock;</li>
+     *   <li>only then are funds, held amounts and risk read - so what is read cannot change
+     *       underneath this request.</li>
+     * </ol>
+     *
+     * <p>READ_COMMITTED is explicit because step 3 and the held-amount read must see rows that
+     * other transactions committed while this one waited; MySQL's default REPEATABLE READ could
+     * serve them from an older snapshot.</p>
+     */
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public TransactionResponse transfer(TransferRequest request) {
         Customer customer = currentUserService.requireCustomer();
         String username = currentUserService.requireUsername();
         List<String> authorities = currentUserService.currentAuthorities();
+        String idempotencyKey = blankToNull(request.idempotencyKey());
 
-        // A repeated submission carrying the same key returns the original transfer rather than
-        // creating a second one (TC-14).
-        if (request.idempotencyKey() != null && !request.idempotencyKey().isBlank()) {
-            Optional<Transaction> existing =
-                    transactionRepository.findByIdempotencyKey(request.idempotencyKey().trim());
-            if (existing.isPresent()) {
-                return toResponse(existing.get(), hasOpenVerification(existing.get()));
-            }
+        Optional<TransactionResponse> replay = replayKnownKey(idempotencyKey, customer, request);
+        if (replay.isPresent()) {
+            return replay.get();
         }
 
-        Account source = validateSourceAccount(request, customer, username, authorities);
         String destination = request.destinationAccountNumber().trim();
+        Account source = lockSourceAccount(request, customer, destination, username, authorities);
+
+        replay = replayKnownKey(idempotencyKey, customer, request);
+        if (replay.isPresent()) {
+            return replay.get();
+        }
+
+        // Holds whose verification code has expired stop promising funds. Doing it here, under the
+        // account lock, means the funds check below sees the true available balance and nobody
+        // needs a background scheduler.
+        expireStaleHolds(source.getId(), username, authorities);
+
         BigDecimal amount = request.amount();
 
         validateDestination(source, destination, username, authorities);
@@ -160,7 +198,7 @@ public class TransactionService {
         transaction.setDescription(blankToNull(request.description()));
         transaction.setStatus(TransactionStatus.PENDING);
         transaction.setInitiatedBy(username);
-        transaction.setIdempotencyKey(blankToNull(request.idempotencyKey()));
+        transaction.setIdempotencyKey(idempotencyKey);
 
         // Transaction monitoring and risk classification (FR-11, FR-12).
         //
@@ -199,17 +237,54 @@ public class TransactionService {
         return toResponse(transaction, verificationRequired);
     }
 
-    private Account validateSourceAccount(
-            TransferRequest request, Customer customer, String username, List<String> authorities) {
+    /**
+     * Answers a request whose idempotency key is already known, or returns empty if it is new.
+     *
+     * <p>A key is honoured only for its owner and only for the same request. The same customer with
+     * the same source, destination and amount (compared as numbers, so {@code 1500} equals
+     * {@code 1500.00}) gets the original answer back - safe to repeat after a timeout or a lost
+     * response. Anything else is a {@link IdempotencyKeyReusedException}, whose message and body
+     * reveal nothing about the transfer that owns the key.</p>
+     */
+    private Optional<TransactionResponse> replayKnownKey(
+            String idempotencyKey, Customer customer, TransferRequest request) {
 
-        Account source = accountRepository
-                .findByAccountNumberAndCustomerId(request.sourceAccountNumber().trim(), customer.getId())
+        if (idempotencyKey == null) {
+            return Optional.empty();
+        }
+        Optional<Transaction> existing = transactionRepository.findByIdempotencyKey(idempotencyKey);
+        if (existing.isEmpty()) {
+            return Optional.empty();
+        }
+        Transaction original = existing.get();
+        boolean sameOwner = original.getSourceAccount().getCustomer().getId().equals(customer.getId());
+        boolean samePayload = original.getSourceAccount().getAccountNumber().equals(request.sourceAccountNumber().trim())
+                && original.getDestinationAccountNumber().equals(request.destinationAccountNumber().trim())
+                && original.getAmount().compareTo(request.amount()) == 0;
+        if (!sameOwner || !samePayload) {
+            throw new IdempotencyKeyReusedException();
+        }
+        return Optional.of(toResponse(original, hasOpenVerification(original)));
+    }
+
+    /**
+     * Locks the source account (and the destination when it is inside this bank) before anything
+     * about the account is read, then validates it. Returns the locked, freshly read account.
+     */
+    private Account lockSourceAccount(
+            TransferRequest request, Customer customer, String destination,
+            String username, List<String> authorities) {
+
+        Long sourceId = accountRepository
+                .findIdByAccountNumberAndCustomerId(request.sourceAccountNumber().trim(), customer.getId())
                 .orElseThrow(() -> {
                     auditService.failure(
                             username, authorities, AuditAction.TRANSFER_REJECTED, "Account",
                             request.sourceAccountNumber(), "Source account not found for this customer");
                     return new ResourceNotFoundException("Source account");
                 });
+        Long destinationId = accountRepository.findIdByAccountNumber(destination).orElse(null);
+        Account source = rowLocker.lockAccounts(sourceId, destinationId).get(sourceId);
 
         if (source.getStatus() != AccountStatus.ACTIVE) {
             auditService.failure(
@@ -353,7 +428,7 @@ public class TransactionService {
         verification.setStatus(VerificationStatus.PENDING);
         verification.setMaxAttempts(verificationConfig.getMaxAttempts());
         verification.setExpiresAt(
-                Instant.now().plus(Duration.ofMinutes(verificationConfig.getCodeValidityMinutes())));
+                clock.instant().plus(Duration.ofMinutes(verificationConfig.getCodeValidityMinutes())));
         verificationRequestRepository.save(verification);
 
         auditService.success(
@@ -393,6 +468,9 @@ public class TransactionService {
         fraudCase.setReference(referenceGenerator.caseReference());
         fraudCase.setAlert(alert);
         fraudCase.setStatus(CaseStatus.OPEN);
+        // A TARGET for the review, shown to the customer and the analyst. Nothing happens when it
+        // passes: there is no automatic release and no scheduler enforcing it.
+        fraudCase.setReviewDueAt(clock.instant().plus(Duration.ofHours(reviewTargetHours)));
         fraudCaseRepository.save(fraudCase);
 
         auditService.success(
@@ -447,13 +525,20 @@ public class TransactionService {
      * (INVALID_STATE, NO_PENDING_VERIFICATION) simply commit an empty transaction, so exempting
      * the whole type is safe.</p>
      */
-    @Transactional(noRollbackFor = BusinessRuleException.class)
+    @Transactional(noRollbackFor = BusinessRuleException.class, isolation = Isolation.READ_COMMITTED)
     public TransactionResponse submitVerification(String reference, String submittedCode) {
         Customer customer = currentUserService.requireCustomer();
         String username = currentUserService.requireUsername();
         List<String> authorities = currentUserService.currentAuthorities();
 
         Transaction transaction = requireOwnTransaction(reference, customer);
+
+        // Same critical section as a new transfer: approving moves money, and the attempt counter
+        // must be read and written under the lock so two parallel guesses cannot both count as
+        // "attempt 1". The transaction is re-read afterwards because its status may have changed
+        // (cancelled, blocked) while this request waited.
+        lockAccountsOf(transaction);
+        rowLocker.reload(transaction);
 
         if (transaction.getStatus() != TransactionStatus.PENDING_VERIFICATION) {
             throw new BusinessRuleException(
@@ -469,20 +554,16 @@ public class TransactionService {
                         "NO_PENDING_VERIFICATION",
                         "There is no verification request waiting for this transfer."));
 
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         if (verification.isExpired(now)) {
-            verification.setStatus(VerificationStatus.EXPIRED);
-            verificationRequestRepository.save(verification);
-            blockTransaction(
-                    transaction,
-                    "The verification code expired before it was entered.",
-                    username,
-                    authorities);
-            transactionRepository.save(transaction);
+            // Nobody judged this transfer fraudulent - it timed out. It therefore ends FAILED
+            // (not BLOCKED), the alert it raised is closed, and the held funds are freed.
+            expireHold(transaction, username, authorities);
             throw new BusinessRuleException(
                     HttpStatus.GONE,
                     "VERIFICATION_EXPIRED",
-                    "The verification code has expired and the transfer has been blocked.");
+                    "The verification code has expired and the transfer was not sent. "
+                            + "No money left your account.");
         }
 
         if (!passwordEncoder.matches(submittedCode, verification.getCodeHash())) {
@@ -540,6 +621,166 @@ public class TransactionService {
         return toResponse(transaction, false);
     }
 
+    // ------------------------------------------------------------------
+    // Expiry of unused verification codes
+    // ------------------------------------------------------------------
+
+    private void expireStaleHolds(Long accountId, String username, List<String> authorities) {
+        for (Transaction stale : transactionRepository.findExpiredVerificationHolds(accountId, clock.instant())) {
+            expireHold(stale, username, authorities);
+        }
+    }
+
+    /** Ends a hold whose code timed out: verification EXPIRED, transfer FAILED, alert CLOSED. */
+    private void expireHold(Transaction transaction, String username, List<String> authorities) {
+        verificationRequestRepository
+                .findFirstByTransactionIdAndStatusOrderByIdDesc(transaction.getId(), VerificationStatus.PENDING)
+                .ifPresent(verification -> {
+                    verification.setStatus(VerificationStatus.EXPIRED);
+                    verificationRequestRepository.save(verification);
+                });
+        transaction.setStatus(TransactionStatus.FAILED);
+        transaction.setStatusReason(EXPIRED_REASON);
+        transaction.setCompletedAt(clock.instant());
+        transactionRepository.save(transaction);
+        closeAlert(transaction);
+
+        auditService.success(
+                username, authorities, AuditAction.VERIFICATION_EXPIRED, "Transaction",
+                transaction.getReference(), EXPIRED_REASON);
+        notifyCustomer(
+                transaction,
+                NotificationType.TRANSACTION,
+                "Transfer not completed",
+                "Your transfer of " + transaction.getCurrency() + " " + transaction.getAmount() + " to "
+                        + transaction.getDestinationName() + " (reference " + transaction.getReference()
+                        + ") was not sent because its verification code expired. "
+                        + "No money left your account.");
+    }
+
+    // ------------------------------------------------------------------
+    // The customer's own actions on a held transfer
+    // ------------------------------------------------------------------
+
+    /**
+     * Lets a customer cancel a transfer that is still held (PENDING or PENDING_VERIFICATION).
+     *
+     * <p>This is NOT a fraud finding. The transfer ends FAILED with an explicit reason, the funds
+     * are released, and a related case is closed with a remark saying exactly that, so a cancelled
+     * legitimate payment is never read as confirmed fraud. Lock order is case first, then accounts
+     * (see {@link RowLocker}); that is what makes a cancel racing an analyst's approval end with
+     * exactly one winner.</p>
+     */
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public TransactionResponse cancel(String reference) {
+        Customer customer = currentUserService.requireCustomer();
+        String username = currentUserService.requireUsername();
+        List<String> authorities = currentUserService.currentAuthorities();
+
+        Transaction transaction = requireOwnTransaction(reference, customer);
+        FraudCase fraudCase = caseOf(transaction)
+                .map(existing -> rowLocker.lockCase(existing.getReference()))
+                .orElse(null);
+        lockAccountsOf(transaction);
+        rowLocker.reload(transaction);
+
+        if (transaction.getStatus() == TransactionStatus.PENDING_VERIFICATION
+                && verificationRequestRepository
+                        .findFirstByTransactionIdAndStatusOrderByIdDesc(transaction.getId(), VerificationStatus.PENDING)
+                        .map(verification -> verification.isExpired(clock.instant()))
+                        .orElse(false)) {
+            expireHold(transaction, username, authorities);
+        }
+        if (!transaction.isReserving()) {
+            throw new BusinessRuleException(
+                    "INVALID_STATE",
+                    "This transfer is already " + transaction.getStatus().name().toLowerCase()
+                            + " and can no longer be cancelled.");
+        }
+
+        transaction.setStatus(TransactionStatus.FAILED);
+        transaction.setStatusReason("Cancelled by customer before release.");
+        transaction.setCompletedAt(clock.instant());
+        transactionRepository.save(transaction);
+        closeAlert(transaction);
+
+        if (fraudCase != null
+                && fraudCase.getStatus() != CaseStatus.RESOLVED_APPROVED
+                && fraudCase.getStatus() != CaseStatus.RESOLVED_BLOCKED) {
+            fraudCase.setStatus(CaseStatus.RESOLVED_BLOCKED);
+            fraudCase.setRemarks("Cancelled by the customer before review. This is not a fraud finding.");
+            fraudCase.setDecidedBy("customer-cancel");
+            fraudCase.setClosedAt(clock.instant());
+            fraudCaseRepository.save(fraudCase);
+        }
+
+        auditService.success(
+                username, authorities, AuditAction.CUSTOMER_CANCELLED, "Transaction",
+                transaction.getReference(), "Customer cancelled the held transfer before release");
+        notifyCustomer(
+                transaction,
+                NotificationType.TRANSACTION,
+                "Transfer cancelled",
+                "Your transfer of " + transaction.getCurrency() + " " + transaction.getAmount() + " to "
+                        + transaction.getDestinationName() + " (reference " + transaction.getReference()
+                        + ") was cancelled at your request. No money left your account.");
+        return toResponse(transaction, false);
+    }
+
+    /**
+     * Records what the account holder says about a held HIGH-risk transfer: {@code CONFIRMED_MINE}
+     * or {@code NOT_MINE}.
+     *
+     * <p>This is EVIDENCE for the analyst and nothing more. It is a statement made in the same
+     * session as the transfer and is not independent identity verification, so it never releases
+     * money. It is written once; the only change allowed afterwards is from "mine" to "not mine",
+     * because a report of fraud outranks a confirmation. "Not mine" also forbids approval (see
+     * {@code FraudCaseService.decide}).</p>
+     */
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public TransactionResponse recordCustomerResponse(String reference, String response) {
+        Customer customer = currentUserService.requireCustomer();
+        String username = currentUserService.requireUsername();
+        List<String> authorities = currentUserService.currentAuthorities();
+
+        Transaction transaction = requireOwnTransaction(reference, customer);
+        FraudCase found = caseOf(transaction).orElseThrow(() -> new BusinessRuleException(
+                "NO_REVIEW_CASE",
+                "This transfer is not under fraud review, so there is nothing to confirm."));
+        FraudCase fraudCase = rowLocker.lockCase(found.getReference());
+        rowLocker.reload(transaction);
+
+        if (transaction.isFinal()
+                || fraudCase.getStatus() == CaseStatus.RESOLVED_APPROVED
+                || fraudCase.getStatus() == CaseStatus.RESOLVED_BLOCKED) {
+            throw new BusinessRuleException("INVALID_STATE", "This review is already finished.");
+        }
+        String current = fraudCase.getCustomerResponse();
+        boolean upgradeToNotMine = "CONFIRMED_MINE".equals(current) && "NOT_MINE".equals(response);
+        if (current != null && !upgradeToNotMine) {
+            throw new BusinessRuleException(
+                    HttpStatus.CONFLICT, "RESPONSE_ALREADY_RECORDED",
+                    "Your statement about this transfer was already recorded and cannot be changed.");
+        }
+
+        fraudCase.setCustomerResponse(response);
+        fraudCase.setCustomerRespondedAt(clock.instant());
+        fraudCaseRepository.save(fraudCase);
+
+        auditService.success(
+                username, authorities, AuditAction.CUSTOMER_RESPONSE_RECORDED, "FraudCase",
+                fraudCase.getReference(),
+                "Customer statement recorded: " + response
+                        + " (unverified same-session statement; evidence only, releases nothing)");
+        return toResponse(transaction, false);
+    }
+
+    private Optional<FraudCase> caseOf(Transaction transaction) {
+        return fraudAlertRepository
+                .findFirstByTransactionIdOrderByIdDesc(transaction.getId())
+                .flatMap(alert -> fraudCaseRepository.findByAlertId(alert.getId()));
+    }
+
     /** State of the outstanding verification challenge, used by the verification screen. */
     @Transactional(readOnly = true)
     public VerificationStatusResponse getVerificationStatus(String reference) {
@@ -563,11 +804,21 @@ public class TransactionService {
     // Settlement used by the fraud review module
     // ------------------------------------------------------------------
 
-    /** Releases a held transfer after a fraud analyst approved it (FR-15). */
+    /**
+     * Releases a held transfer after a fraud analyst approved it (FR-15).
+     *
+     * <p>Callers hold the case lock already (case first, then accounts - see {@link RowLocker}).
+     * The accounts are locked here, and the transaction is re-read under that lock, so the funds
+     * check inside {@code approveTransaction} is made against the committed balance. Check
+     * {@link Transaction#getStatus()} afterwards: a release can end FAILED, and a caller must derive
+     * its own outcome from that, not assume APPROVED.</p>
+     */
     @Transactional
     public Transaction releaseAfterReview(
             Transaction transaction, String remarks, String username, List<String> authorities) {
 
+        lockAccountsOf(transaction);
+        rowLocker.reload(transaction);
         requireHeld(transaction);
         approveTransaction(
                 transaction, "Released by fraud review: " + remarks, username, authorities);
@@ -579,9 +830,19 @@ public class TransactionService {
     public Transaction blockAfterReview(
             Transaction transaction, String remarks, String username, List<String> authorities) {
 
+        lockAccountsOf(transaction);
+        rowLocker.reload(transaction);
         requireHeld(transaction);
         blockTransaction(transaction, "Blocked by fraud review: " + remarks, username, authorities);
         return transactionRepository.save(transaction);
+    }
+
+    /** Locks the source account and an in-bank destination of an existing transfer, lowest id first. */
+    private void lockAccountsOf(Transaction transaction) {
+        Long sourceId = transaction.getSourceAccount().getId();
+        Long destinationId =
+                accountRepository.findIdByAccountNumber(transaction.getDestinationAccountNumber()).orElse(null);
+        rowLocker.lockAccounts(sourceId, destinationId);
     }
 
     private void requireHeld(Transaction transaction) {
@@ -729,7 +990,29 @@ public class TransactionService {
         return value.length() <= max ? value : value.substring(0, max - 3) + "...";
     }
 
-    public static TransactionResponse toResponse(Transaction transaction, boolean verificationRequired) {
+    /**
+     * The customer-facing view of a transfer.
+     *
+     * <p>A hold whose verification code has expired is shown as FAILED even before anything has
+     * swept it, so the screen, the funds shown as available, and the operational report all tell
+     * the same story. A HIGH-risk hold also carries the review TARGET time and whatever the
+     * customer has said about it.</p>
+     */
+    public TransactionResponse toResponse(Transaction transaction, boolean verificationRequired) {
+        boolean expired = transaction.getStatus() == TransactionStatus.PENDING_VERIFICATION
+                && verificationRequestRepository
+                        .findFirstByTransactionIdAndStatusOrderByIdDesc(transaction.getId(), VerificationStatus.PENDING)
+                        .map(verification -> verification.isExpired(clock.instant()))
+                        .orElse(false);
+
+        Instant reviewDueAt = null;
+        String customerResponse = null;
+        if (transaction.getStatus() == TransactionStatus.PENDING && transaction.getRiskLevel() == RiskLevel.HIGH) {
+            Optional<FraudCase> fraudCase = caseOf(transaction);
+            reviewDueAt = fraudCase.map(FraudCase::getReviewDueAt).orElse(null);
+            customerResponse = fraudCase.map(FraudCase::getCustomerResponse).orElse(null);
+        }
+
         return new TransactionResponse(
                 transaction.getId(),
                 transaction.getReference(),
@@ -739,17 +1022,18 @@ public class TransactionService {
                 transaction.getAmount(),
                 transaction.getCurrency(),
                 transaction.getDescription(),
-                transaction.getStatus().name(),
-                transaction.getStatusReason(),
+                expired ? TransactionStatus.FAILED.name() : transaction.getStatus().name(),
+                expired ? EXPIRED_REASON : transaction.getStatusReason(),
                 transaction.getRiskLevel().name(),
                 transaction.getRiskScore(),
                 transaction.getRiskReason(),
-                verificationRequired,
+                verificationRequired && !expired,
                 transaction.getInitiatedBy(),
                 transaction.getCreatedAt(),
-                transaction.getCompletedAt());
+                transaction.getCompletedAt(),
+                reviewDueAt,
+                customerResponse);
     }
-
     /** Exposed so the reporting module can reuse the same risk bands (FR-21). */
     public RiskLevel classify(int score) {
         return fraudRiskService.classify(score);

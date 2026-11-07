@@ -11,11 +11,19 @@ import Loader from '../components/Loader.jsx';
  * operation.</p>
  */
 export default function ProtectedRoute({ children, roles }) {
-  const { isAuthenticated, loading, hasAnyRole } = useAuth();
+  const { isAuthenticated, loading, serverWaking, hasAnyRole } = useAuth();
   const location = useLocation();
 
   if (loading) {
-    return <Loader label="Checking your session" />;
+    return (
+      <Loader
+        label={
+          serverWaking
+            ? 'The server is waking up. This can take up to a minute - your session is kept.'
+            : 'Checking your session'
+        }
+      />
+    );
   }
 
   if (!isAuthenticated) {

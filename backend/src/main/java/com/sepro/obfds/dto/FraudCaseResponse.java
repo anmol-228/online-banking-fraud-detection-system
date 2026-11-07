@@ -21,4 +21,7 @@ public record FraudCaseResponse(
         String decidedBy,
         Instant createdAt,
         Instant updatedAt,
-        Instant closedAt) {}
+        Instant closedAt,
+        String customerResponse,
+        Instant customerRespondedAt,
+        Instant reviewDueAt) {}

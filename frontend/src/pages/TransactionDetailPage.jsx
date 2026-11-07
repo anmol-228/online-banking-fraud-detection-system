@@ -22,6 +22,7 @@ export default function TransactionDetailPage() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [acting, setActing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -51,6 +52,46 @@ export default function TransactionDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function handleCancel() {
+    if (!window.confirm('Cancel this transfer? No money will be sent and the held amount is released.')) {
+      return;
+    }
+    setError('');
+    setSuccess('');
+    setActing(true);
+    try {
+      const { data } = await api.cancelTransaction(reference);
+      setTransaction(data);
+      setVerification(null);
+      setSuccess('Your transfer was cancelled. No money left your account.');
+    } catch (err) {
+      setError(readError(err));
+      await load();
+    } finally {
+      setActing(false);
+    }
+  }
+
+  async function handleStatement(value) {
+    setError('');
+    setSuccess('');
+    setActing(true);
+    try {
+      const { data } = await api.respondToHold(reference, value);
+      setTransaction(data);
+      setSuccess(
+        value === 'NOT_MINE'
+          ? 'Thank you. We recorded that this transfer is not yours. It will not be released.'
+          : 'Thank you. We recorded your statement for the analyst. The transfer is still on hold until they decide.'
+      );
+    } catch (err) {
+      setError(readError(err));
+      await load();
+    } finally {
+      setActing(false);
+    }
+  }
 
   async function handleVerify(event) {
     event.preventDefault();
@@ -116,7 +157,76 @@ export default function TransactionDetailPage() {
         <Message tone="info">
           This transfer has been held for a security review. A fraud analyst will decide whether it
           can proceed, and you will receive a notification with the outcome.
+          {transaction.reviewDueAt ? (
+            <>
+              {' '}
+              The review target is {formatDateTime(transaction.reviewDueAt)}. This is a target, not a
+              guarantee, and nothing is released automatically when it passes.
+            </>
+          ) : null}
         </Message>
+      ) : null}
+
+      {transaction.status === 'PENDING' && transaction.riskLevel === 'HIGH' ? (
+        <section className="card">
+          <div className="card__header">
+            <h2 className="card__title">Is this transfer yours?</h2>
+          </div>
+          {transaction.customerResponse ? (
+            <p className="card__note">
+              You told us:{' '}
+              <strong>
+                {transaction.customerResponse === 'NOT_MINE'
+                  ? 'this transfer is NOT mine'
+                  : 'this transfer is mine'}
+              </strong>
+              . The analyst can see this.
+            </p>
+          ) : (
+            <p className="card__note">
+              Tell the analyst whether you made this transfer. Your answer is a statement made in
+              this session. It does not verify your identity and does <strong>not</strong> release
+              the transfer: an analyst still decides.
+            </p>
+          )}
+          <div className="button-row">
+            {transaction.customerResponse !== 'NOT_MINE' && !transaction.customerResponse ? (
+              <button
+                type="button"
+                className="button button--secondary"
+                disabled={acting}
+                onClick={() => handleStatement('CONFIRMED_MINE')}
+              >
+                This transfer is mine
+              </button>
+            ) : null}
+            {transaction.customerResponse !== 'NOT_MINE' ? (
+              <button
+                type="button"
+                className="button button--danger"
+                disabled={acting}
+                onClick={() => handleStatement('NOT_MINE')}
+              >
+                This is NOT my transfer
+              </button>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {transaction.status === 'PENDING' || transaction.status === 'PENDING_VERIFICATION' ? (
+        <section className="card">
+          <div className="card__header">
+            <h2 className="card__title">Changed your mind?</h2>
+          </div>
+          <p className="card__note">
+            You can cancel a transfer that has not been released. No money is sent and the held
+            amount becomes available again. Cancelling is not a fraud report.
+          </p>
+          <button type="button" className="button button--ghost" disabled={acting} onClick={handleCancel}>
+            {acting ? 'Working...' : 'Cancel this transfer'}
+          </button>
+        </section>
       ) : null}
 
       <section className="card">

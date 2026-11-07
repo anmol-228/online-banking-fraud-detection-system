@@ -20,6 +20,7 @@ import DisputeQueuePage from './pages/staff/DisputeQueuePage.jsx';
 import UsersPage from './pages/admin/UsersPage.jsx';
 import AuditPage from './pages/admin/AuditPage.jsx';
 import ReportsPage from './pages/admin/ReportsPage.jsx';
+import ReportFraudHelpPage from './pages/ReportFraudHelpPage.jsx';
 import NotAuthorisedPage from './pages/NotAuthorisedPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 
@@ -55,6 +56,7 @@ export default function App() {
         }
       >
         <Route path="/" element={<HomeRedirect />} />
+        <Route path="/help/report-fraud" element={<ReportFraudHelpPage />} />
 
         {/* Customer screens */}
         <Route

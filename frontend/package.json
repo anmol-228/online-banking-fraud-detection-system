@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:policy": "node scripts/test_key_policy.mjs",
+    "test:parity": "node scripts/test_rule_parity.mjs"
   },
   "dependencies": {
     "axios": "^1.7.9",

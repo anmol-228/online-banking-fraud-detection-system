@@ -39,6 +39,7 @@ public class ReportService {
     private final DisputeRepository disputeRepository;
     private final CurrentUserService currentUserService;
     private final AuditService auditService;
+    private final java.time.Clock clock;
 
     public ReportService(
             TransactionRepository transactionRepository,
@@ -48,7 +49,8 @@ public class ReportService {
             FraudCaseRepository fraudCaseRepository,
             DisputeRepository disputeRepository,
             CurrentUserService currentUserService,
-            AuditService auditService) {
+            AuditService auditService,
+            java.time.Clock clock) {
         this.transactionRepository = transactionRepository;
         this.customerRepository = customerRepository;
         this.accountRepository = accountRepository;
@@ -57,12 +59,16 @@ public class ReportService {
         this.disputeRepository = disputeRepository;
         this.currentUserService = currentUserService;
         this.auditService = auditService;
+        this.clock = clock;
     }
 
     /** Operational summary: volumes, statuses and money moved (FR-21). */
     @Transactional(readOnly = true)
     public OperationalReportResponse operationalReport() {
         BigDecimal approvedAmount = transactionRepository.sumAmountByStatus(TransactionStatus.APPROVED);
+        // A hold whose verification code expired is reported as FAILED, the same way balances and the
+        // customer's own view treat it, so every screen and report agrees even before it is swept.
+        long expiredHolds = transactionRepository.countExpiredVerificationHolds(clock.instant());
 
         OperationalReportResponse report = new OperationalReportResponse(
                 Instant.now(),
@@ -71,9 +77,9 @@ public class ReportService {
                 transactionRepository.count(),
                 transactionRepository.countByStatus(TransactionStatus.APPROVED),
                 transactionRepository.countByStatus(TransactionStatus.PENDING),
-                transactionRepository.countByStatus(TransactionStatus.PENDING_VERIFICATION),
+                transactionRepository.countByStatus(TransactionStatus.PENDING_VERIFICATION) - expiredHolds,
                 transactionRepository.countByStatus(TransactionStatus.BLOCKED),
-                transactionRepository.countByStatus(TransactionStatus.FAILED),
+                transactionRepository.countByStatus(TransactionStatus.FAILED) + expiredHolds,
                 approvedAmount == null ? BigDecimal.ZERO : approvedAmount,
                 disputeRepository.countByStatus(DisputeStatus.OPEN));
 

@@ -76,7 +76,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints: registration, login and the health probe.
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers("/actuator/health", "/error").permitAll()
+                        // /actuator/health/** covers the liveness and readiness probes a host such as
+                        // Render polls; they expose status only, never details.
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/error").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // Customer banking functions.

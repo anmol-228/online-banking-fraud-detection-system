@@ -29,6 +29,10 @@ export const api = {
   verificationStatus: (reference) => client.get(`/api/transactions/${reference}/verification`),
   submitVerification: (reference, code) =>
     client.post(`/api/transactions/${reference}/verify`, { code }),
+  // The customer's own actions on a held transfer.
+  cancelTransaction: (reference) => client.post(`/api/transactions/${reference}/cancel`),
+  respondToHold: (reference, response) =>
+    client.post(`/api/transactions/${reference}/response`, { response }),
 
   // Notifications (FR-16)
   notifications: () => client.get('/api/notifications'),
@@ -51,6 +55,13 @@ export const api = {
   assignCase: (reference) => client.post(`/api/fraud-cases/${reference}/assign`),
   decideCase: (reference, payload) =>
     client.post(`/api/fraud-cases/${reference}/decision`, payload),
+  // Evidence export and the human-operated mail-draft handoff (nothing is sent by the system).
+  downloadEvidence: (reference) =>
+    client.get(`/api/fraud-cases/${reference}/evidence`, { responseType: 'blob' }),
+  escalationRecipients: () => client.get('/api/fraud-cases/escalation-recipients'),
+  escalate: (reference, recipientKey) =>
+    client.post(`/api/fraud-cases/${reference}/escalation`, { recipientKey }),
+  attestEscalation: (reference) => client.post(`/api/fraud-cases/${reference}/escalation/attest`),
 
   // Administration, audit and reports (FR-19, FR-20, FR-21)
   users: () => client.get('/api/admin/users'),

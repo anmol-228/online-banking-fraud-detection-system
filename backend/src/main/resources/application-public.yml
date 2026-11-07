@@ -1,0 +1,33 @@
+# =============================================================================
+# public profile — a deployment reachable from the internet.
+#
+# Use together with `mysql`:   --spring.profiles.active=mysql,public
+#
+# Nothing sensitive has a default here. The deployment MUST provide, from a secret store:
+#   OBFDS_JWT_SECRET                       at least 32 random characters
+#   OBFDS_BOOTSTRAP_{ADMIN,ANALYST,OFFICER,SYSADMIN,CUSTOMER}_PASSWORD   12+ characters, unique
+#   OBFDS_CORS_ALLOWED_ORIGINS             the exact https:// front-end origin
+#   MYSQL_URL / MYSQL_USERNAME / MYSQL_PASSWORD   (URL needs sslMode=VERIFY_CA or VERIFY_IDENTITY)
+#
+# StartupSafetyGuard refuses to start if any of that is missing or unsafe. Registration is
+# closed unless OBFDS_REGISTRATION_MODE=invite with an OBFDS_INVITE_CODE.
+# =============================================================================
+server:
+  # Behind the host's reverse proxy the client address arrives in X-Forwarded-For. Tomcat only
+  # honours it from the proxy ranges it is configured to trust, so a client cannot choose its own.
+  forward-headers-strategy: native
+  tomcat:
+    threads:
+      max: 4
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 8
+      connection-timeout: 10000
+      keepalive-time: 120000
+      max-lifetime: 600000
+obfds:
+  seed:
+    mode: bootstrap-env
+  registration:
+    mode: closed

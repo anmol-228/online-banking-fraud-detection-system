@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../../services/bankingService.js';
-import { readError, readFieldErrors } from '../../api/client.js';
+import { readBlobError, readError, readFieldErrors } from '../../api/client.js';
 import { formatAmount, formatDateTime, humanise } from '../../utils/format.js';
 import Badge from '../../components/Badge.jsx';
 import Loader from '../../components/Loader.jsx';
@@ -23,6 +23,9 @@ export default function CaseDetailPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [recipients, setRecipients] = useState([]);
+  const [recipientKey, setRecipientKey] = useState('');
+  const [handoff, setHandoff] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -47,6 +50,67 @@ export default function CaseDetailPage() {
       const { data } = await api.assignCase(reference);
       setFraudCase(data);
       setSuccess('This case is now assigned to you.');
+    } catch (err) {
+      setError(readError(err));
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  useEffect(() => {
+    api
+      .escalationRecipients()
+      .then(({ data }) => {
+        setRecipients(data);
+        if (data.length > 0) {
+          setRecipientKey(data[0].key);
+        }
+      })
+      .catch(() => setRecipients([]));
+  }, []);
+
+  /** Downloads the server-built evidence file. The server records the export and its hash. */
+  async function exportEvidence() {
+    setError('');
+    setWorking(true);
+    try {
+      const response = await api.downloadEvidence(reference);
+      const url = URL.createObjectURL(new Blob([response.data], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `evidence-${reference}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setSuccess('Evidence file downloaded. Its SHA-256 hash is recorded in the audit trail.');
+    } catch (err) {
+      setError(await readBlobError(err));
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function prepareHandoff() {
+    setError('');
+    setWorking(true);
+    try {
+      const { data } = await api.escalate(reference, recipientKey);
+      setHandoff(data);
+    } catch (err) {
+      setError(readError(err));
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function attestSent() {
+    setError('');
+    setWorking(true);
+    try {
+      const { data } = await api.attestEscalation(reference);
+      setHandoff(data);
+      setSuccess(data.notice);
     } catch (err) {
       setError(readError(err));
     } finally {
@@ -175,13 +239,111 @@ export default function CaseDetailPage() {
             <dt>Closed at</dt>
             <dd>{formatDateTime(fraudCase.closedAt)}</dd>
           </div>
+          <div>
+            <dt>Review target</dt>
+            <dd>{fraudCase.reviewDueAt ? formatDateTime(fraudCase.reviewDueAt) : '-'}</dd>
+          </div>
+          <div>
+            <dt>Customer statement</dt>
+            <dd>
+              {fraudCase.customerResponse
+                ? `${fraudCase.customerResponse === 'NOT_MINE' ? 'Says it is NOT theirs' : 'Says it is theirs'} (${formatDateTime(fraudCase.customerRespondedAt)})`
+                : 'None recorded'}
+            </dd>
+          </div>
         </dl>
+        {fraudCase.customerResponse ? (
+          <p className="card__disclaimer">
+            The customer statement is an unverified same-session statement. It is evidence, not
+            identity verification, and it never releases or blocks the transfer by itself.
+            {fraudCase.customerResponse === 'NOT_MINE'
+              ? ' Because the customer reports it as not theirs, approval is disabled: block it, or record why the report was wrong.'
+              : ''}
+          </p>
+        ) : null}
+        <p className="card__disclaimer">
+          The review target is a target, not a deadline: nothing is released automatically when it
+          passes.
+        </p>
         {fraudCase.remarks ? (
           <p className="card__note">
             <strong>Remarks: </strong>
             {fraudCase.remarks}
           </p>
         ) : null}
+      </section>
+
+      <section className="card">
+        <div className="card__header">
+          <h2 className="card__title">Evidence and handoff</h2>
+        </div>
+        <p className="card__note">
+          Export a minimal evidence file for this case (account numbers masked, no contact details, and
+          no free text: analyst remarks are not included). Its hash is recorded in the audit trail.
+        </p>
+        <div className="button-row">
+          <button type="button" className="button button--secondary" onClick={exportEvidence} disabled={working}>
+            Export evidence (JSON)
+          </button>
+        </div>
+
+        {recipients.length > 0 ? (
+          <>
+            <p className="card__note">
+              Prepare an e-mail <strong>draft</strong> to one of the team mailboxes configured by your
+              administrator. <strong>This system sends nothing.</strong> Opening the draft is not
+              delivery: send it from your own mail program, attach the exported file, and confirm with
+              the recipient that it arrived.
+            </p>
+            <div className="inline-form">
+              <label className="field">
+                <span className="field__label">Team mailbox</span>
+                <select
+                  className="field__input"
+                  value={recipientKey}
+                  onChange={(event) => setRecipientKey(event.target.value)}
+                >
+                  {recipients.map((recipient) => (
+                    <option key={recipient.key} value={recipient.key}>
+                      {recipient.key} ({recipient.mailbox})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button type="button" className="button button--secondary" onClick={prepareHandoff} disabled={working || !recipientKey}>
+                Prepare e-mail draft
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="card__disclaimer">
+            No team mailbox is configured, so the mail-draft handoff is switched off.
+          </p>
+        )}
+
+        {handoff ? (
+          <div className="card__note">
+            <p>
+              <strong>{handoff.state === 'ESCALATION_USER_ATTESTED_SENT' ? 'Recorded (self-reported)' : 'Draft ready'}:</strong>{' '}
+              {handoff.notice}
+            </p>
+            {handoff.mailto ? (
+              <p>
+                <a href={handoff.mailto} className="button button--primary">
+                  Open the e-mail draft
+                </a>{' '}
+                <button type="button" className="button button--ghost" onClick={attestSent} disabled={working}>
+                  I sent it
+                </button>
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        <p className="card__disclaimer">
+          This is a training system: it never reports to a bank, the police or a regulator. If a real
+          customer were affected, <Link to="/help/report-fraud">see the official reporting channels</Link>.
+        </p>
       </section>
 
       {resolved ? (
@@ -222,7 +384,9 @@ export default function CaseDetailPage() {
               type="button"
               className="button button--primary"
               onClick={() => decide('APPROVE')}
-              disabled={working || remarks.trim().length === 0}
+              disabled={
+                working || remarks.trim().length === 0 || fraudCase.customerResponse === 'NOT_MINE'
+              }
             >
               Approve and release transfer
             </button>

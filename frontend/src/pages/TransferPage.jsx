@@ -3,14 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/bankingService.js';
 import { readError, readFieldErrors } from '../api/client.js';
 import { formatAmount, newIdempotencyKey } from '../utils/format.js';
+import {
+  ambiguousFailureMessage,
+  createKeyStore,
+} from '../utils/idempotency.js';
 import Loader from '../components/Loader.jsx';
 import Message from '../components/Message.jsx';
 
 /**
  * Fund transfer screen (FR-07, FR-09).
  *
- * <p>The customer confirms the details before the transfer is sent, and every submission carries
- * a key that lets the backend recognise a repeated click as the same transfer.</p>
+* <p>The customer confirms the details before the transfer is sent, and every submission carries
+ * a key that lets the backend recognise a repeated click - or a retry after a timeout - as the
+ * same transfer. The key belongs to the request (source, destination, amount), is kept when the
+ * outcome is unknown, and is replaced only after the bank has given a definitive answer. See
+ * utils/idempotency.js.</p>
  */
 export default function TransferPage() {
   const navigate = useNavigate();
@@ -28,7 +35,7 @@ export default function TransferPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
-  const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey);
+  const keyStore = useMemo(() => createKeyStore(), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,27 +94,31 @@ export default function TransferPage() {
   async function submitTransfer() {
     setSubmitting(true);
     setError('');
+    const request = { sourceAccountNumber, destinationAccountNumber, amount, description };
+    // The same request always gets the same key (even after a page reload), so pressing Confirm
+    // again after a timeout cannot move the money twice.
+    const idempotencyKey = keyStore.keyFor(request, newIdempotencyKey);
     try {
-      const { data } = await api.transfer({
-        sourceAccountNumber,
-        destinationAccountNumber,
-        amount,
-        description,
-        idempotencyKey,
-      });
+      const { data } = await api.transfer({ ...request, idempotencyKey });
+      keyStore.forget(request);
       navigate(`/transactions/${data.reference}`, { state: { justCreated: true } });
     } catch (err) {
-      setError(readError(err));
-      setFieldErrors(readFieldErrors(err));
-      setConfirming(false);
-      // A new key is issued after a rejected attempt so a corrected retry is treated as a new
-      // transfer rather than a repeat of the failed one.
-      setIdempotencyKey(newIdempotencyKey());
+      const unknownOutcome = ambiguousFailureMessage(err);
+      if (unknownOutcome) {
+        // The bank may or may not have received the request: keep the key and stay on the
+        // confirmation screen so the customer can safely confirm the identical request again.
+        setError(unknownOutcome);
+      } else {
+        // A definitive answer: the next attempt (usually after a correction) is a new request.
+        keyStore.forget(request);
+        setError(readError(err));
+        setFieldErrors(readFieldErrors(err));
+        setConfirming(false);
+      }
     } finally {
       setSubmitting(false);
     }
   }
-
   if (loading) {
     return <Loader label="Preparing the transfer form" />;
   }

@@ -36,20 +36,21 @@ import org.springframework.test.web.servlet.MvcResult;
  * that gets rolled back afterwards. For the same reason this test permanently spends part of the
  * seeded {@code ravi.kumar} balance and must not run in the same JVM as tests that assume that
  * balance is untouched — see the {@code concurrency} tag below and {@code pom.xml}, which excludes
- * this tag from the default {@code mvn clean package} run. Run it on its own with:</p>
+ * this tag from the default execution of {@code mvn test}: it runs in the separate
+ * {@code committed-data-tests} execution (own JVM). To run only this class:</p>
  *
- * <pre>mvn test -Dgroups=concurrency -Dconcurrency.excludedGroups= -Dtest=ConcurrentTransferApiTest</pre>
+ * <pre>mvn test -Dtest=ConcurrentTransferApiTest -Dsurefire.failIfNoSpecifiedTests=false</pre>
  *
- * <p>Two coordination choices matter, both required by the project's concurrency-test acceptance
- * criteria: threads are released together with a {@link CyclicBarrier}, never {@code Thread.sleep};
- * and the two transfer amounts are seeded so that both cannot succeed (60,000 available, two
- * requests of 35,000 and 35,500). If the two requests do not actually overlap in the database —
- * the failure mode where a test like this can pass without ever racing — the second request would
- * instead be evaluated against the already-reduced balance and fail with {@code
- * INSUFFICIENT_BALANCE}, which the assertions below reject just as loudly as two successes would
- * be. Run repeatedly (this was run 20 times during development, see
- * {@code docs/project-refinement/50_REFINEMENT_EXECUTION_LOG.md}) to confirm the race, not the
- * serialised fallback, is what actually happens.</p>
+ * <p>Two coordination choices matter: threads are released together with a {@link CyclicBarrier},
+ * never {@code Thread.sleep}; and the two transfer amounts are chosen so that both cannot succeed
+ * (60,000 available, two requests of 35,000 and 35,500).</p>
+ *
+ * <p>What a correct outcome is changed when transfers became serialised per account. Previously the
+ * loser of the race was stopped only by an optimistic-version conflict at commit (HTTP 409). Now the
+ * loser waits for the winner's account lock, then reads the reduced balance and is refused for
+ * insufficient funds (HTTP 422); a 409 or 503 here would mean the transfers are no longer being
+ * serialised. The stronger, forced-interleaving versions of this check - including over-reservation
+ * by held transfers - are in {@link MoneyPathIntegrityTest}.</p>
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -92,7 +93,7 @@ class ConcurrentTransferApiTest {
     @Tag("concurrency")
     @DisplayName(
             "NFR-02, NFR-09: two simultaneous transfers against one account settle exactly once, "
-                    + "the other is rejected as a concurrent update")
+                    + "the other is rejected for insufficient funds")
     void onlyOneOfTwoSimultaneousTransfersSettles() throws Exception {
         String token = login();
 
@@ -116,10 +117,11 @@ class ConcurrentTransferApiTest {
             List<Integer> statuses = List.of(statusA, statusB);
 
             assertThat(statuses)
-                    .as("exactly one transfer settles (201) and the other is rejected as a "
-                            + "concurrent update (409) — any other combination means the two "
-                            + "requests did not actually race, or both were allowed to settle")
-                    .containsExactlyInAnyOrder(201, 409);
+                    .as("exactly one transfer settles (201) and the other, which waited for the "
+                            + "account lock and then saw the reduced balance, is rejected for "
+                            + "insufficient funds (422). Two 201s would be a double spend; a 409 or "
+                            + "503 would mean the requests are not being serialised")
+                    .containsExactlyInAnyOrder(201, 422);
         } finally {
             pool.shutdownNow();
         }
