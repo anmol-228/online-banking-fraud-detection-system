@@ -4,12 +4,26 @@ Exercises the real HTTP API of the running backend and prints a PASS/FAIL line p
 """
 
 import json
+import os
 import re
 import sys
 import urllib.error
 import urllib.request
 
-BASE = "http://localhost:8080"
+# Where the backend is, and the demo passwords of the data it was started with. Both are read from the
+# environment so the same script can verify a laptop run, the offline kit or a hosted deployment.
+# The defaults are the PUBLISHED demo passwords and are only correct for a database seeded in
+# `demo-fixed` mode; a deployment seeded with `bootstrap-env` must pass its own.
+#
+# NOTE: this script is written for a FRESH database (it asserts exact balances and report totals, and
+# the velocity rule looks at the last 10 minutes), so run it against a freshly seeded or freshly
+# restored copy, not against data that earlier runs have already changed. The offline kit's
+# demo-verify.ps1 does exactly that.
+BASE = os.environ.get("OBFDS_BASE_URL", "http://localhost:8080").rstrip("/")
+PASSWORD_CUSTOMER = os.environ.get("OBFDS_CUSTOMER_PASSWORD", "Customer@123")
+PASSWORD_ANALYST = os.environ.get("OBFDS_ANALYST_PASSWORD", "Analyst@123")
+PASSWORD_OFFICER = os.environ.get("OBFDS_OFFICER_PASSWORD", "Officer@123")
+PASSWORD_ADMIN = os.environ.get("OBFDS_ADMIN_PASSWORD", "Admin@123")
 results = []
 
 
@@ -45,7 +59,7 @@ print("=" * 78)
 
 # --- Authentication -------------------------------------------------------
 status, body = call("POST", "/api/auth/login",
-                    body={"username": "ravi.kumar", "password": "Customer@123"})
+                    body={"username": "ravi.kumar", "password": PASSWORD_CUSTOMER})
 check("FR-02 valid login returns a token", status == 200 and body.get("token"),
       f"roles={body.get('roles')}")
 customer = body["token"]
@@ -113,7 +127,7 @@ status, balance = call("GET", "/api/accounts/900000000001/balance", customer)
 check("NFR-02 source account debited", float(balance["balance"]) == 147500.0,
       f"balance={balance['balance']}")
 
-meera = login("meera.nair", "Customer@123")
+meera = login("meera.nair", PASSWORD_CUSTOMER)
 status, meera_balance = call("GET", "/api/accounts/900000000003/balance", meera)
 check("NFR-02 destination account credited", float(meera_balance["balance"]) == 122500.0,
       f"balance={meera_balance['balance']}")
@@ -150,7 +164,7 @@ check("NFR-09 held transfer reserves funds without moving them",
       float(balance["balance"]) == 147500.0 and float(balance["reservedAmount"]) == 60000.0,
       f"available={balance['availableBalance']}")
 
-analyst = login("analyst.fraud", "Analyst@123")
+analyst = login("analyst.fraud", PASSWORD_ANALYST)
 status, alerts = call("GET", "/api/alerts", analyst)
 check("FR-13 fraud alert raised and visible to analyst",
       status == 200 and any(a["transactionReference"] == t2["reference"] for a in alerts),
@@ -238,7 +252,7 @@ status, dispute = call("POST", "/api/disputes", customer, {
 check("FR-17 customer can raise a complaint",
       status == 201 and dispute["status"] == "OPEN", dispute["reference"])
 
-officer = login("ops.officer", "Officer@123")
+officer = login("ops.officer", PASSWORD_OFFICER)
 status, queue = call("GET", "/api/disputes/queue", officer)
 check("FR-17 complaint appears in the operations queue",
       status == 200 and any(d["reference"] == dispute["reference"] for d in queue),
@@ -250,7 +264,7 @@ check("FR-17 officer resolves the complaint",
       status == 200 and resolved["status"] == "RESOLVED", resolved["handledBy"])
 
 # --- Administration -------------------------------------------------------
-admin = login("admin.bank", "Admin@123")
+admin = login("admin.bank", PASSWORD_ADMIN)
 status, users = call("GET", "/api/admin/users", admin)
 check("FR-19 administrator lists users", status == 200 and len(users) >= 6, f"{len(users)} users")
 
