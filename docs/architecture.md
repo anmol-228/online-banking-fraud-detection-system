@@ -18,8 +18,8 @@ Business logic          accounts, beneficiaries, transactions, cases, disputes, 
         ↓
 Fraud risk analysis     eight deterministic rules → score → LOW / MEDIUM / HIGH
         ↓
-Persistence             Spring Data JPA → H2 (dev/test, verified) / MySQL 8 (intended target,
-                        configured, not yet exercised)
+Persistence             Spring Data JPA → H2 (dev/test) / MySQL 8.4 (persistent installation;
+                        schema owned by Flyway migrations applied by a separate migrator)
 ```
 
 Notification, audit logging and error handling are cross-cutting services used by the business

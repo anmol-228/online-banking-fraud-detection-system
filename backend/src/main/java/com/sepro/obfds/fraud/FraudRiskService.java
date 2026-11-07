@@ -57,13 +57,14 @@ public class FraudRiskService {
     private final AppProperties.Fraud config;
     private final TransactionRepository transactionRepository;
     private final VerificationRequestRepository verificationRequestRepository;
-    private final ZoneId zoneId = ZoneId.systemDefault();
+    private final ZoneId zoneId;
 
     public FraudRiskService(
             AppProperties properties,
             TransactionRepository transactionRepository,
             VerificationRequestRepository verificationRequestRepository) {
         this.config = properties.getFraud();
+        this.zoneId = ZoneId.of(config.getZone());
         this.transactionRepository = transactionRepository;
         this.verificationRequestRepository = verificationRequestRepository;
     }

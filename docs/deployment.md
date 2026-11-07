@@ -52,11 +52,28 @@ npm run preview
 |---|---|---|---|
 | `dev` | H2 in-memory | `create-drop` | Local development; fresh seeded data every start |
 | `test` | H2 in-memory, isolated | `create-drop` | Automated tests |
-| `mysql` | MySQL 8 | `update` | Intended target environment — configured, not yet connected or exercised |
+| `mysql` + `localdemo` | MySQL 8.4 on this machine | `validate` | A persistent, loopback-only installation (verified; see [operations](operations.md)) |
+| `mysql` + `public` | MySQL 8.4 reachable over verified TLS | `validate` | A hosted deployment: **not deployed**; refuses to start unless every secret and origin is supplied |
 
 ```bash
-mvn spring-boot:run                                    # dev
-mvn spring-boot:run -Dspring-boot.run.profiles=mysql   # MySQL
+mvn spring-boot:run                                    # dev (H2, forgets everything on exit)
+```
+
+The `mysql` profile on its own does **not** start: it carries no users, no signing secret and no registration
+policy, and the start-up safety guard refuses it. A MySQL run is always `mysql` plus either `localdemo` or
+`public`:
+
+```bash
+# this machine only (loopback), persistent: use the tested runbook, which sets everything below for you
+scripts\start-all.ps1                       # see operations.md (Windows)
+
+# the same thing by hand (values are examples; never put real secrets in a file you commit)
+export SPRING_PROFILES_ACTIVE=mysql,localdemo
+export MYSQL_USERNAME=<runtime account>  MYSQL_PASSWORD=<its password>
+export OBFDS_JWT_SECRET_FILE=<path outside the repository>   # created on first start
+java -jar backend/target/obfds-backend-1.0.0.jar
+
+# a hosted deployment (NOT deployed): mysql,public refuses to start unless every secret and origin is supplied
 ```
 
 ---
@@ -67,12 +84,16 @@ Nothing secret is committed. `.env.example` is the template; `.env` is git-ignor
 
 | Variable | Purpose |
 |---|---|
-| `SPRING_PROFILES_ACTIVE` | `dev` or `mysql` |
+| `SPRING_PROFILES_ACTIVE` | `dev` (H2), `mysql,localdemo` (this machine) or `mysql,public` (hosted); `mysql` alone is refused |
 | `SERVER_PORT` | Backend port (default 8080) |
 | `OBFDS_JWT_SECRET` | Token signing key — **at least 32 characters**, validated at start-up |
 | `OBFDS_JWT_EXPIRY_MINUTES` | Token lifetime (default 120) |
 | `OBFDS_CORS_ALLOWED_ORIGINS` | Exact browser origin permitted; never a wildcard |
-| `OBFDS_SEED_DEMO_DATA` | Whether to seed the fictional dataset |
+| `OBFDS_SEED_MODE` | `none` (default), `bootstrap-env` (fictional dataset, passwords from `OBFDS_BOOTSTRAP_*_PASSWORD`, at least 12 characters) or `demo-fixed` (published demo passwords; refused unless the process is isolated on this machine) |
+| `OBFDS_SEED_DEMO_DATA` | Master switch: `false` forces seed mode `none` whatever `OBFDS_SEED_MODE` says |
+| `OBFDS_REGISTRATION_MODE` | `closed` (default), `invite` (with `OBFDS_INVITE_CODE`) or `open` |
+| `OBFDS_JWT_SECRET_FILE` | `localdemo` only: where the per-install signing secret is kept (outside the repository) |
+| `OBFDS_LOGIN_MAX_FAILURES` / `OBFDS_LOGIN_LOCKOUT_SECONDS` / `OBFDS_LOGIN_MAX_PER_MINUTE` | Login throttle (per username and address; in memory) |
 | `MYSQL_URL` / `MYSQL_USERNAME` / `MYSQL_PASSWORD` | MySQL profile only |
 | `OBFDS_FRAUD_*` | Fraud thresholds, tunable without a rebuild |
 | `VITE_API_BASE_URL` | Backend URL used by the frontend (build time) |
@@ -88,7 +109,7 @@ Values baked into a frontend build are **public**. No private credential is ever
 
 `.github/workflows/ci.yml` runs on pushes and pull requests to `main`:
 
-- **Backend** — JDK 21, cached Maven dependencies, `mvn clean verify` (compiles and runs all 84 tests)
+- **Backend** — JDK 21, cached Maven dependencies, `mvn clean verify` (compiles and runs all 206 tests in two JVMs), a test-count gate, and a second job that runs the same suite against a MySQL 8.4 service container
 - **Frontend** — Node 20, `npm ci` for a reproducible install, `npm run build`
 
 `.github/workflows/pages.yml` builds the showcase and deploys it to GitHub Pages using the official
@@ -133,7 +154,8 @@ instance requires no session replication or sticky sessions.
    on that schema only.
 2. Set every environment variable, including a freshly generated `OBFDS_JWT_SECRET` and
    `OBFDS_SEED_DEMO_DATA=false`.
-3. `mvn clean package` → deploy the JAR with `SPRING_PROFILES_ACTIVE=mysql`.
+3. `mvn clean package` → deploy the JAR with `SPRING_PROFILES_ACTIVE=mysql,public` (it refuses to start
+   until every secret and origin is supplied).
 4. Build the frontend with `VITE_API_BASE_URL` pointing at the deployed API.
 5. Serve the built files behind the reverse proxy; configure TLS and the exact CORS origin.
 6. Verify: health returns UP, one login succeeds, one transfer completes, the audit trail contains
@@ -146,9 +168,9 @@ instance requires no session replication or sticky sessions.
 
 | Limitation | What a production deployment would do |
 |---|---|
-| Schema managed by Hibernate `ddl-auto` | Flyway or Liquibase, so every change is versioned and reversible |
+| ~~Schema managed by Hibernate `ddl-auto`~~ | Done: versioned Flyway migrations applied by a separate migrator, runtime `validate` (see [database design](database-design.md)) |
 | No containerisation | A multi-stage Dockerfile and a compose file |
 | Tokens cannot be revoked before expiry | Short-lived access tokens with refresh, or a revocation list |
 | Single database instance | A replica and a documented failover procedure |
 | Verification codes delivered in-app | A real SMS or email provider, so the second factor is genuinely out of band |
-| No rate limiting | Throttling at the proxy or application layer |
+| Only a login throttle exists, and it is in memory | The application throttles failed logins per username and address (HTTP 429 with `Retry-After`), but the counters are lost on restart and not shared between instances, and nothing limits other endpoints. A production deployment would add throttling at the proxy and a shared store. The client address behind a proxy is not verified. |

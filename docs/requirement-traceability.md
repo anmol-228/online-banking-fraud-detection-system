@@ -45,14 +45,14 @@ presented as a single matrix rather than as separate claims.
 | ID | Quality | Mechanism | Evidence | Status |
 |---|---|---|---|---|
 | NFR-01 | Security | BCrypt hashing, stateless JWT, per-endpoint role rules, generic error messages, single-origin CORS | `ResilienceApiTest` + source review | Complete |
-| NFR-02 | Reliability | Debit, credit and status change in one `@Transactional` method; `@Version` optimistic locking | `TransactionWorkflowApiTest`, `ConcurrentTransferApiTest` | Complete |
+| NFR-02 | Reliability | Debit, credit and status change in one `@Transactional` method; lock-first serialisation per account (`RowLocker`) with `@Version` as a second line | `TransactionWorkflowApiTest`, `ConcurrentTransferApiTest`, `MoneyPathIntegrityTest`, `CustomerCancelApiTest` | Complete |
 | NFR-03 | Availability | Stateless backend, public `/actuator/health` | `ResilienceApiTest` | Complete (no numeric SLA claimed) |
 | NFR-04 | Performance | Indexed columns, pagination | Observed during runtime verification | Stated as an observation, not a guarantee |
 | NFR-05 | Scalability | No server-side session; all state in the database | Design review | Design-level — a second instance was not started |
 | NFR-06 | Usability | Role-filtered navigation, confirmations, validation messages, empty states | 19 screenshots + manual review | Complete |
 | NFR-07 | Maintainability | Layered structure, DTOs at the boundary, one exception handler, externalised fraud thresholds | Code review | Complete |
 | NFR-08 | Privacy | Ownership checks return 404, never 403, for another customer's resource | Test names across multiple classes | Complete |
-| NFR-09 | Data Integrity | FK/unique constraints, optimistic locking, idempotency key, available-balance reservation | `TransactionWorkflowApiTest`, `ConcurrentTransferApiTest` | Complete |
+| NFR-09 | Data Integrity | FK/unique constraints, row locks in one global order, owner- and payload-bound idempotency, available-balance reservation (expired holds release), case outcome derived from the transfer | `TransactionWorkflowApiTest`, `ConcurrentTransferApiTest`, `MoneyPathIntegrityTest`, `IdempotencyApiTest`, `HoldExpiryApiTest`, `SchemaMigrationMysqlTest` | Complete |
 | NFR-10 | Auditability | `AuditService` writes with `REQUIRES_NEW` on the public entry points | `AuditCommitApiTest` (deliberately non-transactional) | Complete |
 
 **10 of 10 non-functional requirements addressed, with two evidence levels stated honestly rather

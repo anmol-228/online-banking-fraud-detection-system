@@ -27,20 +27,53 @@ Three reasons, in order of importance:
 Implemented in `FraudRiskService` (backend) and mirrored in `showcaseFraudRules.js` (browser demo),
 with identical points and thresholds.
 
+<!-- This table is machine-checked: FraudRuleSpecificationTest parses it and fails if a point value
+     here differs from what the engine does. Edit the table and the code together. -->
+<!-- rules:begin -->
 | Rule | Fires when | Points | Why it is a signal |
 |---|---|---|---|
 | `VERY_HIGH_AMOUNT` | amount ≥ 100,000 | 50 | Large amounts carry the largest loss |
-| `HIGH_AMOUNT` | amount ≥ 50,000 (below the very-high limit) | 35 | Unusually large for an ordinary customer |
-| `NEW_BENEFICIARY` | payee added within the last 24 hours | 25 | Adding a payee then immediately sending money is a common pattern |
-| `UNREGISTERED_PAYEE` | destination is not in the customer's saved payee list | 20 | No established relationship with the destination |
-| `RAPID_TRANSFERS` | ≥ 3 transfers by this customer in the last 10 minutes | 20 | Rapid sequences suggest automation rather than a person |
+| `HIGH_AMOUNT` | 50,000 ≤ amount < 100,000 | 35 | Unusually large for an ordinary customer |
+| `NEW_BENEFICIARY` | payee is saved, and was saved less than 24 hours ago | 25 | Adding a payee then immediately sending money is a common pattern |
+| `UNREGISTERED_PAYEE` | destination is not an active saved payee of the customer | 20 | No established relationship with the destination |
+| `RAPID_TRANSFERS` | ≥ 3 earlier transfers by this customer in the last 10 minutes | 20 | Rapid sequences suggest automation rather than a person |
 | `REPEATED_FAILED_VERIFICATION` | ≥ 2 failed verifications in the last 24 hours | 20 | Someone is failing challenges they should be able to pass |
-| `BALANCE_DRAIN` | amount exceeds 80% of the balance | 15 | Emptying an account is unusual for a routine payment |
-| `UNUSUAL_HOUR` | initiated between 00:00 and 05:00 | 10 | Weak alone; meaningful in combination |
+| `BALANCE_DRAIN` | amount > 80% of the account's ledger balance | 15 | Emptying an account is unusual for a routine payment |
+| `UNUSUAL_HOUR` | initiated from 00:00 to 04:59 (Asia/Kolkata) | 10 | Weak alone; meaningful in combination |
+<!-- rules:end -->
 
-Maximum reachable score: **140**.
+Maximum reachable score: **140** (50 + 25 + 20 + 15 + 10 + 20: a very large transfer to a payee saved
+minutes ago, during a burst of transfers, draining the account, at night, after failed
+verifications).
 
-The amount rules are mutually exclusive — a transfer scores either 50 or 35, never both.
+Two pairs are mutually exclusive, so a transfer never scores both members:
+
+- **Amount:** `VERY_HIGH_AMOUNT` *or* `HIGH_AMOUNT` (or neither).
+- **Payee:** `NEW_BENEFICIARY` *or* `UNREGISTERED_PAYEE` (or neither). A payee that is saved and older
+  than 24 hours scores nothing.
+
+### Exact boundary semantics
+
+Every comparison below is what the code does, and each is pinned by a test
+(`FraudRuleSpecificationTest`).
+
+| Rule | Boundary behaviour |
+|---|---|
+| Amount | Lower bounds are **inclusive**: exactly 50,000 is `HIGH_AMOUNT`; exactly 100,000 is `VERY_HIGH_AMOUNT`; 49,999.99 scores nothing. |
+| `NEW_BENEFICIARY` | The payee must have been saved **strictly after** (now − 24 h). A payee saved exactly 24 hours ago is *not* new; one saved 23 h 59 min 59 s ago is. |
+| `RAPID_TRANSFERS` | Counts this customer's **earlier** transfers (every status, every account) created **strictly after** (now − 10 min). The transfer being assessed is not counted. 2 earlier transfers: no; 3: yes. |
+| `REPEATED_FAILED_VERIFICATION` | 1 failure: no. 2 failures in the last 24 hours: yes. |
+| `BALANCE_DRAIN` | **Strictly greater** than 0.80 × the ledger balance: an amount of exactly 80% does not fire; 80% plus one paisa does. A balance of zero or less never fires. Funds held for other pending transfers are *not* subtracted. |
+| `UNUSUAL_HOUR` | The hour of day **in the configured zone** (`Asia/Kolkata`, not the server's own zone) is in [00, 05): 00:00 fires, 04:59 fires, 05:00 and 23:59 do not. |
+
+### What is configurable and what is not
+
+| Configurable (`obfds.fraud.*`) | Fixed in code |
+|---|---|
+| the two amount limits, the payee-age hours, the velocity count and window, the drain fraction, the unusual-hour window and zone, both score thresholds | the **eight point values**, the 24-hour window and the count of 2 for failed verifications |
+
+The point values are deliberately constants: changing a weight changes what the documented scores
+mean, so it is a code change that goes through review and updates this table.
 
 ### Eight rules, six methods
 
@@ -57,13 +90,23 @@ project quotes.
 
 ## 3. Classification
 
+<!-- bands:begin -->
 | Score | Level | Outcome |
 |---|---|---|
 | 0 – 29 | **LOW** | Approved immediately, money moves |
 | 30 – 59 | **MEDIUM** | Held as `PENDING_VERIFICATION`; customer enters a six-digit code |
 | 60 and above | **HIGH** | Held as `PENDING`; a fraud analyst decides |
+<!-- bands:end -->
 
-Both thresholds, and every rule threshold above, are configuration properties. Tuning the engine
+Bands are inclusive at the lower edge: a score of exactly 30 is MEDIUM and exactly 60 is HIGH.
+
+A HIGH hold is released only by an analyst. The customer can say whether the transfer is theirs, but
+that statement is recorded as evidence and never moves money; a customer who says it is *not* theirs
+also prevents approval. A MEDIUM hold whose code expires ends as `FAILED` ("verification expired,
+transfer not sent"), frees the reserved funds and closes its alert. The customer may also cancel a
+held transfer (`FAILED`, "Cancelled by customer"), which is not a fraud finding.
+
+The thresholds and window parameters listed above are configuration properties. Tuning the engine
 does not require recompiling:
 
 ```yaml
@@ -75,6 +118,7 @@ obfds:
     velocity-count: 3
     velocity-minutes: 10
     balance-fraction: 0.80
+    zone: Asia/Kolkata
     odd-hour-start: 0
     odd-hour-end: 5
     medium-score-threshold: 30
@@ -117,10 +161,27 @@ charting rule frequency, needs no new data capture.
 |---|---|---|---|---|
 | ₹2,500 to an established payee | none | 0 | LOW | Approved instantly |
 | ₹55,000 to an established payee | HIGH_AMOUNT | 35 | MEDIUM | Verification code required |
+| ₹50,000 (exactly) to a payee added an hour ago | HIGH_AMOUNT (35) + NEW_BENEFICIARY (25) | 60 | HIGH | Fraud case opened — see the boundary note below |
+| ₹49,999.99 to a payee added an hour ago | NEW_BENEFICIARY | 25 | LOW | Approved, signal recorded |
 | ₹60,000 to a payee added minutes ago | HIGH_AMOUNT + NEW_BENEFICIARY | 60 | HIGH | Fraud case opened |
 | ₹120,000 to a payee added minutes ago | VERY_HIGH_AMOUNT + NEW_BENEFICIARY | 75 | HIGH | Fraud case opened |
 | ₹1,000 to an unsaved account number | UNREGISTERED_PAYEE | 20 | LOW | Approved, but the signal is recorded |
 | 4th transfer within 10 minutes | RAPID_TRANSFERS | 20 | LOW | Approved, reason cites rapid activity |
+
+**Boundary note.** One rupee less (₹49,999) removes 35 points and the transfer is approved; exactly
+₹50,000 to a brand-new payee is held for an analyst. That cliff is a property of any threshold
+rule, and it is why the boundaries are tested individually rather than assumed.
+
+### A genuine transfer that is held (false positive) and how it is resolved
+
+A customer saves a new payee and sends ₹55,000 to it an hour later: `HIGH_AMOUNT` (35) +
+`NEW_BENEFICIARY` (25) = **60 → HIGH**. The transfer is held with reason text, and a case is opened
+with a review *target* time. The customer can open the transfer, state that it is theirs (a
+same-session statement, recorded as evidence only), and wait. The analyst reads the reasons and the
+statement, decides independently, and approves: the money moves, the audit trail and the exported
+evidence show the whole sequence. If the customer instead states that it is *not* theirs, approval
+is disabled and the analyst blocks it with no money moving. A customer who changes their mind can
+also cancel the held transfer themselves.
 
 ---
 
@@ -132,7 +193,10 @@ charting rule frequency, needs no new data capture.
 a BCrypt hash of the code is stored; it is a short-lived secret granting a financial action, so it
 is treated exactly like a password. The code has a 10-minute expiry and 3 attempts. Exhausting the
 attempts blocks the transfer **and escalates the alert to a fraud case**, because repeated failure
-is itself a signal.
+is itself a signal. If the code simply **expires** unused, the transfer ends `FAILED` ("verification
+expired, transfer not sent"), the funds it was holding are released immediately (the balance shown
+as available ignores an expired hold), and its alert is closed; nobody judged it fraudulent, so it is
+not `BLOCKED`.
 
 **HIGH** — the transfer is held, an alert is raised and a fraud case is opened automatically. An
 analyst assigns the case to themselves, reads the reason, and records a decision with **mandatory
@@ -155,9 +219,21 @@ or HIGH classification without either a successful verification or an analyst de
   every completed transfer and can raise a dispute.
 - **Thresholds are chosen for demonstration**, not derived from real transaction data. They make
   the workflow easy to exercise; they do not reflect the behaviour of any real bank.
+- **A score is a risk signal, not a finding of fraud.** Three different things are easy to confuse:
+  the *rule conditions* (for example "amount of at least 50,000"), the *point weights and band limits*
+  (30 and 60), which are values this project **chose** and have not fitted to any data, and *actual
+  fraud*, which this system never determines. A HIGH score means "a person should look at this", and
+  a customer's "mine / not mine" statement is evidence for that person, not proof either way.
 - **The rules are independent.** There is no interaction modelling — for example, a large amount to
   an established payee at a normal hour is treated the same as a large amount in isolation, beyond
   simple point addition.
+- **Velocity is per customer, across their accounts, and counted at the moment a transfer is
+  assessed.** Transfers on one account are serialised, so they see each other. Several transfers
+  started at the same instant from *different* accounts of the same customer are not serialised
+  against one another, so such a burst can evade `RAPID_TRANSFERS`. This is a documented limitation,
+  accepted for this release; money is still protected (each account's balance and holds are exact).
+- **No claim of accuracy is made.** The score has not been validated against real fraud data, and no
+  detection rate, precision or recall is implied.
 
 ---
 
