@@ -158,7 +158,10 @@ with the transaction list.
 - **LOW** transfers settle immediately. **MEDIUM** transfers wait for a six-digit code (shown on the
   customer's Notifications page: there is no SMS gateway). **HIGH** transfers open a case.
 - A **MEDIUM** hold whose code expires ends `FAILED` ("verification expired, transfer not sent"), frees the
-  funds and closes its alert. It is not `BLOCKED`: nobody judged it fraudulent.
+  funds and closes its alert. It is not `BLOCKED`: nobody judged it fraudulent. The funds are free and the
+  customer sees `FAILED` the moment the code expires; the database rows, the audit entry and the customer's
+  notification are written the next time the hold is touched (there is no background job), so until then an
+  analyst can still see its alert as open.
 - A customer can **cancel** a held transfer (`FAILED`, "Cancelled by customer"). A case for it is closed
   with a remark saying this is not a fraud finding.
 - For a **HIGH** hold the customer can state "this is mine" or "this is not mine". It is recorded once (a

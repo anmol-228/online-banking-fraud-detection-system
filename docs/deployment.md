@@ -109,7 +109,7 @@ Values baked into a frontend build are **public**. No private credential is ever
 
 `.github/workflows/ci.yml` runs on pushes and pull requests to `main`:
 
-- **Backend** — JDK 21, cached Maven dependencies, `mvn clean verify` (compiles and runs all 206 tests in two JVMs), a test-count gate, and a second job that runs the same suite against a MySQL 8.4 service container
+- **Backend** — JDK 21, cached Maven dependencies, `mvn clean verify` (compiles and runs all 208 tests in two JVMs), a test-count gate, and a second job that runs the same suite against a MySQL 8.4 service container
 - **Frontend** — Node 20, `npm ci` for a reproducible install, `npm run build`
 
 `.github/workflows/pages.yml` builds the showcase and deploys it to GitHub Pages using the official
@@ -173,4 +173,5 @@ instance requires no session replication or sticky sessions.
 | Tokens cannot be revoked before expiry | Short-lived access tokens with refresh, or a revocation list |
 | Single database instance | A replica and a documented failover procedure |
 | Verification codes delivered in-app | A real SMS or email provider, so the second factor is genuinely out of band |
+| Expired verification holds are finalised lazily | Funds and the customer's view are correct the moment a code expires, but the stored rows, the audit entry, the notification and the analyst's alert status are written only when the hold is next touched (no scheduler). A production deployment would add a locked, idempotent sweeper. |
 | Only a login throttle exists, and it is in memory | The application throttles failed logins per username and address (HTTP 429 with `Retry-After`), but the counters are lost on restart and not shared between instances, and nothing limits other endpoints. A production deployment would add throttling at the proxy and a shared store. The client address behind a proxy is not verified. |

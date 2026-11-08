@@ -264,6 +264,13 @@ transfer `FAILED` (not `BLOCKED`), frees the funds and closes the alert; enterin
 `410 VERIFICATION_EXPIRED`. A hold whose code has expired is also shown as `FAILED` and no longer counts
 toward `reservedAmount`.
 
+Expiry is **derived on read and written when the hold is next touched** (a verification attempt, a cancel, or
+another transfer from the same account); no background job runs. Until then the funds are already free and the
+customer already sees `FAILED`, but the stored transfer and alert still read `PENDING_VERIFICATION` / `OPEN`, so
+an analyst's alert list can still show that alert as open, and the `VERIFICATION_EXPIRED` audit entry and the
+customer notification appear only when the hold is touched. This is a known, documented limitation, pinned by
+test EXP-5.
+
 **`POST …/cancel`** is allowed while the status is `PENDING` or `PENDING_VERIFICATION`. The transfer becomes
 `FAILED` with the reason "Cancelled by customer before release.", the funds are released, a related case is
 closed with a remark that this is *not a fraud finding*. Anything else is `422 INVALID_STATE`.
@@ -336,6 +343,11 @@ Only one dispute may be open per transaction at a time.
 
 `remarks` is mandatory — the decision is written to the audit trail, and a decision without a
 reason cannot be reviewed later. A case cannot be decided twice.
+
+`remarks` are **for staff only**. They are stored on the case and in the case's audit entry, and are never
+copied into anything the customer can read: the customer sees the fixed sentences "Released by fraud review." or
+"Blocked by fraud review." as the transfer's status reason (and in the block notification), and the evidence
+export omits the remarks altogether.
 
 The case response also carries `customerResponse`, `customerRespondedAt` and `reviewDueAt`. Two rules protect
 the money:

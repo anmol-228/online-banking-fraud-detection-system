@@ -1099,9 +1099,10 @@ const service = {
         'Block it, or contact the customer and record why this report was wrong.');
     }
     if (approve) {
-      settleApproved(txn, `Released by fraud review: ${payload.remarks}`);
+      // Fixed text on purpose: the analyst's remarks are for staff and must not reach the customer.
+      settleApproved(txn, 'Released by fraud review.');
     } else {
-      settleBlocked(txn, `Blocked by fraud review: ${payload.remarks}`);
+      settleBlocked(txn, 'Blocked by fraud review.');
     }
 
     mutate(() => {

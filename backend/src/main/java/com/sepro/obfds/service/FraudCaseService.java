@@ -126,7 +126,7 @@ public class FraudCaseService {
             fraudCase.setStatus(CaseStatus.RESOLVED_BLOCKED);
         } else if (approve) {
             Transaction settled =
-                    transactionService.releaseAfterReview(transaction, remarks, username, authorities);
+                    transactionService.releaseAfterReview(transaction, username, authorities);
             // The case outcome is derived from what actually happened to the money, never from
             // what the analyst asked for: a release can end FAILED (the funds were no longer
             // there), and a case must not read "approved" over a transfer that did not happen.
@@ -138,7 +138,7 @@ public class FraudCaseService {
                         + " - " + settled.getStatusReason() + "] " + remarks, 500);
             }
         } else {
-            transactionService.blockAfterReview(transaction, remarks, username, authorities);
+            transactionService.blockAfterReview(transaction, username, authorities);
             fraudCase.setStatus(CaseStatus.RESOLVED_BLOCKED);
         }
 

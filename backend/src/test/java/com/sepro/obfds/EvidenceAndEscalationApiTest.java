@@ -86,8 +86,8 @@ class EvidenceAndEscalationApiTest extends AbstractCommittedApiTest {
                 "decision", "BLOCK",
                 "remarks", "Zelda Quill (zelda.quill@mail.example, 9876543210) of Rose Villa, Pune called to disown it."));
         assertThat(decided.getResponse().getStatus()).isEqualTo(200);
-        assertThat(txStatusReason(reference)).as("the stored reason really does embed the remarks")
-                .contains("Zelda Quill");
+        assertThat(txStatusReason(reference)).as("the stored reason is fixed text, it never quotes the remarks")
+                .isEqualTo("Blocked by fraud review.");
 
         String json = evidence(caseReference, analyst).getResponse().getContentAsString();
 
@@ -110,6 +110,38 @@ class EvidenceAndEscalationApiTest extends AbstractCommittedApiTest {
                 .doesNotContainIgnoringCase("passwordHash")
                 .doesNotContainIgnoringCase("codeHash");
         assertThat(json).contains("****" + customer.accountNumber().substring(customer.accountNumber().length() - 4));
+    }
+
+    @Test
+    @DisplayName("PRIV-1 Analyst remarks stay with staff: the customer's transfer view and notifications carry fixed text only")
+    void analystRemarksNeverReachTheCustomer() throws Exception {
+        String remarks = "Zelda Quill (zelda.quill@mail.example, 9876543210) of Rose Villa, Pune phoned about this.";
+        String[] secrets = {"Zelda", "Quill", "Rose Villa", "Pune", "9876543210", "mail.example"};
+        for (String decision : new String[] {"APPROVE", "BLOCK"}) {
+            Fixture customer = newCustomer("200000.00");
+            String reference = holdHigh(customer, decision.equals("APPROVE") ? "500000000571" : "500000000572");
+            String caseReference = caseReferenceFor(reference);
+            String analyst = analystToken();
+            call(post("/api/fraud-cases/" + caseReference + "/assign"), analyst, null);
+            MvcResult decided = call(post("/api/fraud-cases/" + caseReference + "/decision"), analyst,
+                    Map.of("decision", decision, "remarks", remarks));
+            assertThat(decided.getResponse().getStatus()).as(decision).isEqualTo(200);
+
+            String transfer = call(get("/api/transactions/" + reference), customer.token(), null)
+                    .getResponse().getContentAsString();
+            String notifications = call(get("/api/notifications"), customer.token(), null)
+                    .getResponse().getContentAsString();
+            for (String secret : secrets) {
+                assertThat(transfer).as(decision + " transfer view must not contain " + secret).doesNotContain(secret);
+                assertThat(notifications).as(decision + " notifications must not contain " + secret).doesNotContain(secret);
+            }
+            assertThat(body(call(get("/api/transactions/" + reference), customer.token(), null)).get("statusReason").asText())
+                    .isEqualTo(decision.equals("APPROVE") ? "Released by fraud review." : "Blocked by fraud review.");
+            // ...while staff still have the analyst's words.
+            assertThat(call(get("/api/fraud-cases/" + caseReference), analyst, null).getResponse().getContentAsString())
+                    .contains("Zelda Quill");
+            assertThat(auditRows("FRAUD_CASE_DECIDED", caseReference)).isEqualTo(1);
+        }
     }
 
     @Test

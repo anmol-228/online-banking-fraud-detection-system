@@ -80,6 +80,32 @@ class HoldExpiryApiTest extends AbstractCommittedApiTest {
         assertThat(auditRows("VERIFICATION_EXPIRED", stale)).isEqualTo(1);
     }
 
+    /**
+     * CHARACTERISATION (documents today's behaviour; flip it if the design changes). Nothing finalises an
+     * untouched expired hold: no scheduler runs. Funds and the customer's view are already correct, but the
+     * stored rows, the audit trail and the ANALYST's alert list still say "open" until the account is next used.
+     */
+    @Test
+    @DisplayName("EXP-5 An untouched expired hold: funds free and customer view FAILED, but the analyst alert list still shows it OPEN")
+    void untouchedExpiredHoldStillAppearsOpenToTheAnalyst() throws Exception {
+        Fixture customer = newCustomer("100000.00");
+        String reference = holdThatExpiresImmediately(customer, "500000000141");
+
+        var balance = body(call(get("/api/accounts/" + customer.accountNumber() + "/balance"), customer.token(), null));
+        assertThat(balance.get("availableBalance").decimalValue()).isEqualByComparingTo("100000.00");
+        assertThat(body(call(get("/api/transactions/" + reference), customer.token(), null)).get("status").asText())
+                .isEqualTo("FAILED");
+
+        assertThat(alertStatusOf(reference)).as("stored alert").isEqualTo("OPEN");
+        assertThat(auditRows("VERIFICATION_EXPIRED", reference)).as("no expiry audit row yet").isZero();
+        var alerts = body(call(get("/api/alerts?status=OPEN"), analystToken(), null));
+        boolean listed = false;
+        for (var alert : alerts) {
+            listed |= reference.equals(alert.get("transactionReference").asText());
+        }
+        assertThat(listed).as("the analyst's OPEN list still contains the expired hold's alert").isTrue();
+    }
+
     @Test
     @DisplayName("EXP-4 The customer's own view agrees: an expired hold reads FAILED and releases the funds")
     void customerViewShowsTheExpiredHoldAsFailed() throws Exception {

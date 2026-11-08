@@ -52,7 +52,7 @@ Tests use an isolated database (in-memory H2 by default), so they never touch de
 
 ## Results
 
-**Backend: 206 tests** (163 in the default execution + 43 in the committed-data execution).
+**Backend: 208 tests** (163 in the default execution + 45 in the committed-data execution).
 
 | Database | Result |
 |---|---|
@@ -97,7 +97,7 @@ one documented weight and the suite fails; revert and it passes. Those logs are 
 
 ### Concurrency
 
-The committed-data execution (tag `concurrency`, 43 tests) is where races are tested. Threads are released
+The committed-data execution (tag `concurrency`, 45 tests) is where races are tested. Threads are released
 together by a barrier (never `Thread.sleep`), and for the money path the overlap is **forced**: a bounded
 barrier inside the risk evaluation holds each request there until all have arrived, which on unserialised
 code guarantees they have all read the same "available balance". On correct code only one request can be
@@ -109,10 +109,10 @@ inside at a time, so the wait times out and the request carries on; a test must 
 | `MoneyPathIntegrityTest` | 5 | Two MEDIUM holds, or a MEDIUM and a HIGH, that together exceed the balance: only one is accepted and `balance − held ≥ 0` on the database; eight simultaneous legitimate transfers all settle and the money is conserved to the paisa; a case is never `RESOLVED_APPROVED` over a `FAILED` transfer |
 | `IdempotencyApiTest` | 6 | Another customer's key: `409`, nothing disclosed; same customer different payload: `409`; exact retry and `1500` vs `1500.00`: replayed once; two identical requests in flight together: one row, one debit, both `201`; a new key is a new transfer |
 | `PoolStarvationApiTest` | 1 | Real HTTP: pool+4 simultaneous transfers, bad logins and health checks give **zero** 5xx and every transfer settles |
-| `HoldExpiryApiTest` | 4 | Expired hold stops reserving; late code ends `FAILED` and closes the alert; a stale hold is swept on the account's next use; the customer's view agrees |
+| `HoldExpiryApiTest` | 5 | Expired hold stops reserving; late code ends `FAILED` and closes the alert; a stale hold is swept on the account's next use; the customer's view agrees; EXP-5 characterises the documented limitation: an untouched expired hold frees funds and reads `FAILED` to the customer, while its stored alert and the analyst alert list still read open |
 | `CustomerCancelApiTest` | 10 | Cancel releases funds and closes the case without accusation; approval after cancel refused; limited to the owner's open holds; **cancel vs analyst approval raced 5 times**: exactly one winner, and `(approved ⇔ balance reduced ⇔ case approved)` every time |
 | `CustomerResponseApiTest` | 6 | The statement is evidence only: write-once, "not mine" outranks and blocks approval, no sequence of statements moves money |
-| `EvidenceAndEscalationApiTest` | 10 | Evidence export is minimal, hashed and verifiable, and carries no free text, and exporting or drafting never changes the hash (EVI-5; EVI-2 puts a name, address, phone and e-mail into the analyst's remarks and asserts none of it appears); the handoff is allow-listed, injection-proof, rate-limited and never automatic |
+| `EvidenceAndEscalationApiTest` | 11 | Evidence export is minimal, hashed and verifiable, and carries no free text, and exporting or drafting never changes the hash (EVI-5; PRIV-1: analyst remarks never reach the customer, in the transfer view or the notifications, while staff keep them; EVI-2 puts a name, address, phone and e-mail into the analyst's remarks and asserts none of it appears); the handoff is allow-listed, injection-proof, rate-limited and never automatic |
 
 Measured on MySQL 8.4.13: the committed-data execution passed 13/13 in each of five fresh JVMs (the suite had 13
 tests at that point, before the workflow classes were added), and a fixed-code run recorded **0** InnoDB
@@ -268,7 +268,7 @@ laptop with the seeded dataset:
 | Application start-up | ~4–5 seconds |
 | Demo data seeding | Under 0.5 seconds |
 | Typical API calls | No noticeable delay; the 45-check script completes in seconds |
-| Full test suite | a few minutes for all 206 tests on H2 (two JVMs, several application contexts, a real-HTTP burst test and forced race tests); the 12 migration tests add a few seconds on MySQL |
+| Full test suite | a few minutes for all 208 tests on H2 (two JVMs, several application contexts, a real-HTTP burst test and forced race tests); the 12 migration tests add a few seconds on MySQL |
 
 Design measures relevant under real load: indexes on the columns the hot queries filter on,
 pagination on transaction history and the audit trail, and stateless authentication so more

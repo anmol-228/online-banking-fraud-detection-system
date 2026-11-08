@@ -26,14 +26,14 @@ MUST_RUN = {
     "IdempotencyApiTest": 6,
     "MoneyPathIntegrityTest": 5,
     "PoolStarvationApiTest": 1,
-    "HoldExpiryApiTest": 4,
+    "HoldExpiryApiTest": 5,
     "CustomerCancelApiTest": 10,   # 5 single cases + the race repeated 5 times
     "CustomerResponseApiTest": 6,
-    "EvidenceAndEscalationApiTest": 10,
+    "EvidenceAndEscalationApiTest": 11,
     "NoOutboundDeliveryTest": 3,
 }
 MYSQL_ONLY = {"SchemaMigrationMysqlTest": 12}
-TOTAL_FLOOR = 180  # all tests across both Surefire executions, MySQL-only ones excluded (187 at time of writing)
+TOTAL_FLOOR = 180  # all tests across both Surefire executions, MySQL-only ones excluded (189 at time of writing)
 
 
 def main() -> int:

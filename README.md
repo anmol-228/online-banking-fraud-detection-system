@@ -319,10 +319,10 @@ cd backend  && mvn clean verify      # compile, run all tests (two JVMs), build 
 cd frontend && npm run test:policy && npm run test:parity && npm run build
 ```
 
-**206 automated backend tests**, covering unit, integration, security, concurrency and failure-handling
-levels: 163 in the default execution and 43 in a separate execution that commits real rows and races real
+**208 automated backend tests**, covering unit, integration, security, concurrency and failure-handling
+levels: 163 in the default execution and 45 in a separate execution that commits real rows and races real
 transactions. On H2 all pass (12 MySQL-only migration tests are skipped); against a **real MySQL 8.4** at its
-default isolation all 206 run and pass. CI also asserts that the important test classes actually ran. The
+default isolation all 208 run and pass. CI also asserts that the important test classes actually ran. The
 frontend has policy and rule-parity scripts (36 + 168 checks) and is verified by building both modes; there is no
 component-level frontend test suite. Detail: [Testing](docs/testing.md).
 

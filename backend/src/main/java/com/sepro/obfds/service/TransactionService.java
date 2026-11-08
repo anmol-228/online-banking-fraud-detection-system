@@ -91,6 +91,14 @@ public class TransactionService {
     static final String EXPIRED_REASON =
             "Verification code expired before it was used; the transfer was not sent.";
 
+    /**
+     * What the customer is told about a fraud-review decision. Deliberately fixed text: the analyst's
+     * remarks are free text, can name or describe anyone, and are meant for staff. They stay in the
+     * fraud case and in the case's audit entry, never in anything the customer can read.
+     */
+    static final String REVIEW_RELEASED_REASON = "Released by fraud review.";
+    static final String REVIEW_BLOCKED_REASON = "Blocked by fraud review.";
+
     /** Window used to recognise the same transfer being submitted twice (TC-14). */
     private static final Duration DUPLICATE_WINDOW = Duration.ofSeconds(60);
 
@@ -815,25 +823,24 @@ public class TransactionService {
      */
     @Transactional
     public Transaction releaseAfterReview(
-            Transaction transaction, String remarks, String username, List<String> authorities) {
+            Transaction transaction, String username, List<String> authorities) {
 
         lockAccountsOf(transaction);
         rowLocker.reload(transaction);
         requireHeld(transaction);
-        approveTransaction(
-                transaction, "Released by fraud review: " + remarks, username, authorities);
+        approveTransaction(transaction, REVIEW_RELEASED_REASON, username, authorities);
         return transactionRepository.save(transaction);
     }
 
     /** Blocks a held transfer after a fraud analyst rejected it (FR-15). */
     @Transactional
     public Transaction blockAfterReview(
-            Transaction transaction, String remarks, String username, List<String> authorities) {
+            Transaction transaction, String username, List<String> authorities) {
 
         lockAccountsOf(transaction);
         rowLocker.reload(transaction);
         requireHeld(transaction);
-        blockTransaction(transaction, "Blocked by fraud review: " + remarks, username, authorities);
+        blockTransaction(transaction, REVIEW_BLOCKED_REASON, username, authorities);
         return transactionRepository.save(transaction);
     }
 
