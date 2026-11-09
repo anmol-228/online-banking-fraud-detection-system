@@ -102,7 +102,7 @@ Fraud Risk Engine  (eight deterministic rules → score → LOW / MEDIUM / HIGH)
       ↓
 Spring Data JPA
       ↓
-H2 in-memory (dev/test, verified)  |  MySQL 8 (intended target, configured, not yet exercised)
+H2 in-memory (dev/test)  |  MySQL 8.4 (persistent; schema owned by versioned Flyway migrations)
 
 Cross-cutting: notification service, append-only audit logging, centralised error handling
 ```
@@ -125,8 +125,10 @@ More detail: [Architecture](docs/architecture.md) · [Database design](docs/data
 **Backend** — Java 21 language level, Spring Boot 3.5, Spring Web, Spring Security, Spring Data JPA,
 Bean Validation, JJWT
 
-**Database** — H2 in-memory (dev and test profiles, verified). MySQL 8 is the intended target; the
-`mysql` profile is configured but has not been connected or exercised.
+**Database** — H2 in-memory for development and the automated tests. MySQL 8.4 for a persistent
+installation: the schema is created and upgraded only by the separate Flyway migrator, and the running
+service uses a database account that can read and write rows but cannot alter tables. The full test
+suite also runs against a real MySQL (see [Testing](docs/testing.md)).
 
 **Tooling** — Maven, npm, GitHub Actions, JUnit 5, MockMvc, Mockito, AssertJ
 
@@ -230,19 +232,22 @@ Runs on **http://localhost:8080**. Verify with `curl http://localhost:8080/actua
 No installation needed by default: the `dev` profile uses an in-memory H2 database, seeded with
 fictional demo data on every start.
 
-To use MySQL instead:
-
-```sql
-CREATE DATABASE obfds CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'obfds_user'@'localhost' IDENTIFIED BY 'your-password-here';
-GRANT ALL PRIVILEGES ON obfds.* TO 'obfds_user'@'localhost';
-```
+To use MySQL instead (a persistent, single-machine installation), the schema is created by the
+migrator, never by the application, and two database accounts are used: one for the migrator (DDL) and
+one, with `SELECT/INSERT/UPDATE/DELETE` only, for the running service.
 
 ```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=mysql
+# 1. create the schema with the migrator (DDL account), then start the service as the DML-only account
+java -cp obfds-backend.jar -Dloader.main=com.sepro.obfds.migrate.Migrator \
+     org.springframework.boot.loader.launch.PropertiesLauncher migrate        # needs MIGRATE_URL/USERNAME/PASSWORD
+SPRING_PROFILES_ACTIVE=mysql,localdemo MYSQL_USERNAME=... MYSQL_PASSWORD=... java -jar obfds-backend.jar
 ```
 
-Copy `.env.example` to `.env` and set the connection values first. `.env` is git-ignored.
+The `localdemo` profile binds to `127.0.0.1`, seeds the fictional demo data and keeps a random
+per-installation signing secret in a file outside the repository. Without it (or `public`), the service
+refuses to start: it has no secret, seeds nobody and accepts no registrations by default. The step-by-step
+Windows runbook, including backups and a restore proof, is in **[docs/operations.md](docs/operations.md)**
+(scripts in [`ops/local-windows`](ops/local-windows)).
 
 ### Frontend
 
@@ -264,8 +269,10 @@ VITE_APP_MODE=showcase npm run build && npm run preview
 
 ## Demo Accounts
 
-Fictional credentials seeded for local development and the public demo. They grant access to
-nothing outside this application.
+Fictional credentials seeded for local development and the browser demo. They grant access to
+nothing outside this application. They exist only in `dev` and in the loopback-only `localdemo`
+installation: the service **refuses to start** with these fixed passwords on anything reachable from
+outside (`public` profile or any non-loopback bind), where passwords come from the environment instead.
 
 | Role | Username | Password |
 |---|---|---|
@@ -308,13 +315,16 @@ Every failure returns the same JSON shape with a stable machine-readable `code`.
 ## Testing
 
 ```bash
-cd backend  && mvn clean package     # compile, run all tests, build the JAR
-cd frontend && npm run build         # production build
+cd backend  && mvn clean verify      # compile, run all tests (two JVMs), build the JAR
+cd frontend && npm run test:policy && npm run test:parity && npm run build
 ```
 
-**84 automated backend tests across 12 classes**, covering unit, integration, security and
-failure-handling levels. The figure is backend-only — there is no automated frontend test suite;
-the React application is verified by building it in both modes and by manual walkthrough:
+**208 automated backend tests**, covering unit, integration, security, concurrency and failure-handling
+levels: 163 in the default execution and 45 in a separate execution that commits real rows and races real
+transactions. On H2 all pass (12 MySQL-only migration tests are skipped); against a **real MySQL 8.4** at its
+default isolation all 208 run and pass. CI also asserts that the important test classes actually ran. The
+frontend has policy and rule-parity scripts (36 + 168 checks) and is verified by building both modes; there is no
+component-level frontend test suite. Detail: [Testing](docs/testing.md).
 
 | Level | Focus |
 |---|---|
@@ -349,14 +359,19 @@ Implemented in this project:
 
 - **Password hashing** — BCrypt; no password is ever stored or logged in readable form
 - **Verification codes hashed too** — they grant a financial action, so they are treated like passwords
-- **Stateless JWT authentication** with signature and expiry verification on every request
+- **Stateless JWT authentication** with signature and expiry verification on every request, and a database lookup of the user on every request: a disabled user, a deleted user or a changed role takes effect on the very next call (the token's own role claim is ignored)
+- **Fail-closed start-up** — the service refuses to start with the published development secret, fixed demo passwords, open registration, a localhost CORS origin or an unsafe thread/connection-pool ratio on anything reachable from outside
+- **Login abuse controls** — bounded per-(username, client) lockout with growing delay and `429 Retry-After`, a per-address ceiling, input length limits checked before the password hash, and one identical `401` for wrong password and disabled account
+- **Closed or invite-only registration** for a public deployment (it hands out a funded account)
 - **Role-based authorization** declared per endpoint, with `anyRequest().authenticated()` as the default, so a new endpoint is protected unless explicitly opened
 - **Ownership checks** — every query is scoped to the caller resolved from the security context, never to a client-supplied identifier; a request for another user's resource returns `404` rather than `403` so it does not confirm existence
 - **Server-side validation** on every input, independent of the browser
 - **Safe error responses** — actionable failures get a specific code, internal faults get a generic message and the detail stays in the server log
 - **Restricted CORS** to a configured origin, never a wildcard
 - **Audit logging** written in its own transaction so rejected attempts still leave evidence
-- **Optimistic locking** on accounts and an idempotency key on transfers
+- **Serialised money movement** — a transfer, a verification, a cancellation and an analyst decision each take row locks in one fixed order (case, then accounts by id), so concurrent requests cannot over-reserve funds, double-spend or deadlock; the version column on accounts remains as a second line of defence
+- **Safe retries** — an idempotency key is honoured only for its owner and for the same transfer (source, destination, amount): a retry after a timeout returns the original, another customer's key returns `409` with no data, and a different key is a different transfer
+- **Evidence only, never an automatic report** — a held high-risk transfer can only be released by an analyst; the customer's statement ("mine" / "not mine") is recorded as evidence and never moves money; the system builds a minimal evidence file with no free text (account numbers masked, analyst remarks omitted) and a mail *draft* to a pre-approved team mailbox and sends nothing itself
 
 Detail: [Security](docs/security.md)
 
@@ -368,9 +383,11 @@ Detail: [Security](docs/security.md)
 - No real banking integration and no real-money processing. All data is fictional.
 - The public demo is frontend-only and uses simulated data held in the browser.
 - The backend and database are **not** publicly deployed yet.
-- JWTs cannot be revoked before expiry, so disabling a login prevents the next sign-in but does not invalidate a token already issued.
-- Schema is managed by Hibernate `ddl-auto` rather than versioned migrations.
-- Concurrency control is implemented and covered by a contention test (two simultaneous transfers against one account, run outside the default suite), but has not been load-tested; horizontal scaling is a design property, not a demonstrated one.
+- A signed token is not stored server-side, but because every request re-reads the user, disabling a login (or removing a role) stops that user immediately. Rotating the signing secret signs everyone out.
+- Transfers on one account are serialised, and the service is tuned to a small, fixed worker pool (threads are held to half the database connections). That bounds throughput; it has been exercised with bursts larger than the pool but not load-tested for sustained traffic.
+- Velocity (`RAPID_TRANSFERS`) is counted per customer when a transfer is assessed. Transfers started at the same instant from *different* accounts of one customer are not serialised against each other and can evade that one rule; money stays exact on every account.
+- Flyway 11.7 officially tests MySQL up to 8.1; the migrations here are verified on MySQL 8.4.13 (empty database, populated database, rollback), but that is a verified combination rather than a vendor-certified one.
+- The login throttle and its counters live in memory: a restart clears them.
 - Production deployment would require security assessment, load testing and operational hardening that have not been performed.
 
 ---
@@ -378,9 +395,7 @@ Detail: [Security](docs/security.md)
 ## Future Improvements
 
 - Full-stack cloud deployment — see the [deployment roadmap](docs/full-stack-deployment-roadmap.md)
-- Database migrations with Flyway instead of `ddl-auto`
-- Token revocation so disabling a login takes effect immediately
-- A genuine out-of-band channel (SMS/email) for verification codes
+- A genuine out-of-band channel (SMS/email) for verification codes, and, if ever wanted, a server-originated notification through an authenticated provider (today the system only prepares a draft for a person to send)
 - Containerised deployment and a richer CI/CD pipeline
 - Load-testing concurrency under sustained contention, not just a single race
 - Deeper reporting and analytics over the audit trail

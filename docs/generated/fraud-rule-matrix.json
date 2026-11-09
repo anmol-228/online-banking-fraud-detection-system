@@ -1,0 +1,2137 @@
+{
+  "cases" : [ {
+    "id" : "C001",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ ],
+    "score" : 0
+  }, {
+    "id" : "C002",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 20
+  }, {
+    "id" : "C003",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ "UNUSUAL_HOUR" ],
+    "score" : 10
+  }, {
+    "id" : "C004",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 30
+  }, {
+    "id" : "C005",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ "BALANCE_DRAIN" ],
+    "score" : 15
+  }, {
+    "id" : "C006",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "BALANCE_DRAIN", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 35
+  }, {
+    "id" : "C007",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ "BALANCE_DRAIN", "UNUSUAL_HOUR" ],
+    "score" : 25
+  }, {
+    "id" : "C008",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "BALANCE_DRAIN", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 45
+  }, {
+    "id" : "C009",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ "RAPID_TRANSFERS" ],
+    "score" : 20
+  }, {
+    "id" : "C010",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 40
+  }, {
+    "id" : "C011",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "RAPID_TRANSFERS", "UNUSUAL_HOUR" ],
+    "score" : 30
+  }, {
+    "id" : "C012",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 50
+  }, {
+    "id" : "C013",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS" ],
+    "score" : 35
+  }, {
+    "id" : "C014",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 55
+  }, {
+    "id" : "C015",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "UNUSUAL_HOUR" ],
+    "score" : 45
+  }, {
+    "id" : "C016",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 65
+  }, {
+    "id" : "C017",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "LOW",
+    "rules" : [ "NEW_BENEFICIARY" ],
+    "score" : 25
+  }, {
+    "id" : "C018",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "NEW_BENEFICIARY", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 45
+  }, {
+    "id" : "C019",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "NEW_BENEFICIARY", "UNUSUAL_HOUR" ],
+    "score" : 35
+  }, {
+    "id" : "C020",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "NEW_BENEFICIARY", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 55
+  }, {
+    "id" : "C021",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY" ],
+    "score" : 40
+  }, {
+    "id" : "C022",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 60
+  }, {
+    "id" : "C023",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "UNUSUAL_HOUR" ],
+    "score" : 50
+  }, {
+    "id" : "C024",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 70
+  }, {
+    "id" : "C025",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "NEW_BENEFICIARY", "RAPID_TRANSFERS" ],
+    "score" : 45
+  }, {
+    "id" : "C026",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "NEW_BENEFICIARY", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 65
+  }, {
+    "id" : "C027",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "NEW_BENEFICIARY", "RAPID_TRANSFERS", "UNUSUAL_HOUR" ],
+    "score" : 55
+  }, {
+    "id" : "C028",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "NEW_BENEFICIARY", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 75
+  }, {
+    "id" : "C029",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "RAPID_TRANSFERS" ],
+    "score" : 60
+  }, {
+    "id" : "C030",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 80
+  }, {
+    "id" : "C031",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "UNUSUAL_HOUR" ],
+    "score" : 70
+  }, {
+    "id" : "C032",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 90
+  }, {
+    "id" : "C033",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "LOW",
+    "rules" : [ "UNREGISTERED_PAYEE" ],
+    "score" : 20
+  }, {
+    "id" : "C034",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE" ],
+    "score" : 40
+  }, {
+    "id" : "C035",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 30
+  }, {
+    "id" : "C036",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 50
+  }, {
+    "id" : "C037",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "BALANCE_DRAIN", "UNREGISTERED_PAYEE" ],
+    "score" : 35
+  }, {
+    "id" : "C038",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "BALANCE_DRAIN", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE" ],
+    "score" : 55
+  }, {
+    "id" : "C039",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "BALANCE_DRAIN", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 45
+  }, {
+    "id" : "C040",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 65
+  }, {
+    "id" : "C041",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "RAPID_TRANSFERS", "UNREGISTERED_PAYEE" ],
+    "score" : 40
+  }, {
+    "id" : "C042",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE" ],
+    "score" : 60
+  }, {
+    "id" : "C043",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "RAPID_TRANSFERS", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 50
+  }, {
+    "id" : "C044",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "25000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 70
+  }, {
+    "id" : "C045",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "UNREGISTERED_PAYEE" ],
+    "score" : 55
+  }, {
+    "id" : "C046",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE" ],
+    "score" : 75
+  }, {
+    "id" : "C047",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 65
+  }, {
+    "id" : "C048",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "2750.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 85
+  }, {
+    "id" : "C049",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "HIGH_AMOUNT" ],
+    "score" : 35
+  }, {
+    "id" : "C050",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "HIGH_AMOUNT", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 55
+  }, {
+    "id" : "C051",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "HIGH_AMOUNT", "UNUSUAL_HOUR" ],
+    "score" : 45
+  }, {
+    "id" : "C052",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 65
+  }, {
+    "id" : "C053",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT" ],
+    "score" : 50
+  }, {
+    "id" : "C054",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 70
+  }, {
+    "id" : "C055",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "UNUSUAL_HOUR" ],
+    "score" : 60
+  }, {
+    "id" : "C056",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 80
+  }, {
+    "id" : "C057",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "HIGH_AMOUNT", "RAPID_TRANSFERS" ],
+    "score" : 55
+  }, {
+    "id" : "C058",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 75
+  }, {
+    "id" : "C059",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "RAPID_TRANSFERS", "UNUSUAL_HOUR" ],
+    "score" : 65
+  }, {
+    "id" : "C060",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 85
+  }, {
+    "id" : "C061",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "RAPID_TRANSFERS" ],
+    "score" : 70
+  }, {
+    "id" : "C062",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 90
+  }, {
+    "id" : "C063",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "RAPID_TRANSFERS", "UNUSUAL_HOUR" ],
+    "score" : 80
+  }, {
+    "id" : "C064",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 100
+  }, {
+    "id" : "C065",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "NEW_BENEFICIARY" ],
+    "score" : 60
+  }, {
+    "id" : "C066",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "NEW_BENEFICIARY", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 80
+  }, {
+    "id" : "C067",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "NEW_BENEFICIARY", "UNUSUAL_HOUR" ],
+    "score" : 70
+  }, {
+    "id" : "C068",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "NEW_BENEFICIARY", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 90
+  }, {
+    "id" : "C069",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "NEW_BENEFICIARY" ],
+    "score" : 75
+  }, {
+    "id" : "C070",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "NEW_BENEFICIARY", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 95
+  }, {
+    "id" : "C071",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "NEW_BENEFICIARY", "UNUSUAL_HOUR" ],
+    "score" : 85
+  }, {
+    "id" : "C072",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "NEW_BENEFICIARY", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 105
+  }, {
+    "id" : "C073",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "NEW_BENEFICIARY", "RAPID_TRANSFERS" ],
+    "score" : 80
+  }, {
+    "id" : "C074",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 100
+  }, {
+    "id" : "C075",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "UNUSUAL_HOUR" ],
+    "score" : 90
+  }, {
+    "id" : "C076",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 110
+  }, {
+    "id" : "C077",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "NEW_BENEFICIARY", "RAPID_TRANSFERS" ],
+    "score" : 95
+  }, {
+    "id" : "C078",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 115
+  }, {
+    "id" : "C079",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "UNUSUAL_HOUR" ],
+    "score" : 105
+  }, {
+    "id" : "C080",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR" ],
+    "score" : 125
+  }, {
+    "id" : "C081",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "HIGH_AMOUNT", "UNREGISTERED_PAYEE" ],
+    "score" : 55
+  }, {
+    "id" : "C082",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE" ],
+    "score" : 75
+  }, {
+    "id" : "C083",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 65
+  }, {
+    "id" : "C084",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 85
+  }, {
+    "id" : "C085",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "UNREGISTERED_PAYEE" ],
+    "score" : 70
+  }, {
+    "id" : "C086",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE" ],
+    "score" : 90
+  }, {
+    "id" : "C087",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 80
+  }, {
+    "id" : "C088",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 100
+  }, {
+    "id" : "C089",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "RAPID_TRANSFERS", "UNREGISTERED_PAYEE" ],
+    "score" : 75
+  }, {
+    "id" : "C090",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE" ],
+    "score" : 95
+  }, {
+    "id" : "C091",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "RAPID_TRANSFERS", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 85
+  }, {
+    "id" : "C092",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "600000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "HIGH_AMOUNT", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 105
+  }, {
+    "id" : "C093",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "RAPID_TRANSFERS", "UNREGISTERED_PAYEE" ],
+    "score" : 90
+  }, {
+    "id" : "C094",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE" ],
+    "score" : 110
+  }, {
+    "id" : "C095",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "RAPID_TRANSFERS", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 100
+  }, {
+    "id" : "C096",
+    "input" : {
+      "amount" : "60000.00",
+      "balance" : "66000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "HIGH_AMOUNT", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR" ],
+    "score" : 120
+  }, {
+    "id" : "C097",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "VERY_HIGH_AMOUNT" ],
+    "score" : 50
+  }, {
+    "id" : "C098",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "REPEATED_FAILED_VERIFICATION", "VERY_HIGH_AMOUNT" ],
+    "score" : 70
+  }, {
+    "id" : "C099",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 60
+  }, {
+    "id" : "C100",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 80
+  }, {
+    "id" : "C101",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "VERY_HIGH_AMOUNT" ],
+    "score" : 65
+  }, {
+    "id" : "C102",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "REPEATED_FAILED_VERIFICATION", "VERY_HIGH_AMOUNT" ],
+    "score" : 85
+  }, {
+    "id" : "C103",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 75
+  }, {
+    "id" : "C104",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 95
+  }, {
+    "id" : "C105",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "RAPID_TRANSFERS", "VERY_HIGH_AMOUNT" ],
+    "score" : 70
+  }, {
+    "id" : "C106",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "VERY_HIGH_AMOUNT" ],
+    "score" : 90
+  }, {
+    "id" : "C107",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "RAPID_TRANSFERS", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 80
+  }, {
+    "id" : "C108",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 100
+  }, {
+    "id" : "C109",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "VERY_HIGH_AMOUNT" ],
+    "score" : 85
+  }, {
+    "id" : "C110",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "VERY_HIGH_AMOUNT" ],
+    "score" : 105
+  }, {
+    "id" : "C111",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 95
+  }, {
+    "id" : "C112",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 115
+  }, {
+    "id" : "C113",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "NEW_BENEFICIARY", "VERY_HIGH_AMOUNT" ],
+    "score" : 75
+  }, {
+    "id" : "C114",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "NEW_BENEFICIARY", "REPEATED_FAILED_VERIFICATION", "VERY_HIGH_AMOUNT" ],
+    "score" : 95
+  }, {
+    "id" : "C115",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "NEW_BENEFICIARY", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 85
+  }, {
+    "id" : "C116",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "NEW_BENEFICIARY", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 105
+  }, {
+    "id" : "C117",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "VERY_HIGH_AMOUNT" ],
+    "score" : 90
+  }, {
+    "id" : "C118",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "REPEATED_FAILED_VERIFICATION", "VERY_HIGH_AMOUNT" ],
+    "score" : 110
+  }, {
+    "id" : "C119",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 100
+  }, {
+    "id" : "C120",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 120
+  }, {
+    "id" : "C121",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "NEW_BENEFICIARY", "RAPID_TRANSFERS", "VERY_HIGH_AMOUNT" ],
+    "score" : 95
+  }, {
+    "id" : "C122",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "NEW_BENEFICIARY", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "VERY_HIGH_AMOUNT" ],
+    "score" : 115
+  }, {
+    "id" : "C123",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "NEW_BENEFICIARY", "RAPID_TRANSFERS", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 105
+  }, {
+    "id" : "C124",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "NEW_BENEFICIARY", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 125
+  }, {
+    "id" : "C125",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "VERY_HIGH_AMOUNT" ],
+    "score" : 110
+  }, {
+    "id" : "C126",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "VERY_HIGH_AMOUNT" ],
+    "score" : 130
+  }, {
+    "id" : "C127",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 120
+  }, {
+    "id" : "C128",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 140
+  }, {
+    "id" : "C129",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "UNREGISTERED_PAYEE", "VERY_HIGH_AMOUNT" ],
+    "score" : 70
+  }, {
+    "id" : "C130",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "VERY_HIGH_AMOUNT" ],
+    "score" : 90
+  }, {
+    "id" : "C131",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "UNREGISTERED_PAYEE", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 80
+  }, {
+    "id" : "C132",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 100
+  }, {
+    "id" : "C133",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "UNREGISTERED_PAYEE", "VERY_HIGH_AMOUNT" ],
+    "score" : 85
+  }, {
+    "id" : "C134",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "VERY_HIGH_AMOUNT" ],
+    "score" : 105
+  }, {
+    "id" : "C135",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 95
+  }, {
+    "id" : "C136",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 115
+  }, {
+    "id" : "C137",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "RAPID_TRANSFERS", "UNREGISTERED_PAYEE", "VERY_HIGH_AMOUNT" ],
+    "score" : 90
+  }, {
+    "id" : "C138",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "VERY_HIGH_AMOUNT" ],
+    "score" : 110
+  }, {
+    "id" : "C139",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "RAPID_TRANSFERS", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 100
+  }, {
+    "id" : "C140",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "1500000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 120
+  }, {
+    "id" : "C141",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "UNREGISTERED_PAYEE", "VERY_HIGH_AMOUNT" ],
+    "score" : 105
+  }, {
+    "id" : "C142",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "VERY_HIGH_AMOUNT" ],
+    "score" : 125
+  }, {
+    "id" : "C143",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 115
+  }, {
+    "id" : "C144",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "165000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNREGISTERED_PAYEE", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 135
+  }, {
+    "id" : "B01",
+    "input" : {
+      "amount" : "49999.99",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ ],
+    "score" : 0
+  }, {
+    "id" : "B02",
+    "input" : {
+      "amount" : "50000.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "HIGH_AMOUNT" ],
+    "score" : 35
+  }, {
+    "id" : "B03",
+    "input" : {
+      "amount" : "99999.99",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "HIGH_AMOUNT" ],
+    "score" : 35
+  }, {
+    "id" : "B04",
+    "input" : {
+      "amount" : "100000.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "MEDIUM",
+    "rules" : [ "VERY_HIGH_AMOUNT" ],
+    "score" : 50
+  }, {
+    "id" : "B05",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 86399
+    },
+    "level" : "LOW",
+    "rules" : [ "NEW_BENEFICIARY" ],
+    "score" : 25
+  }, {
+    "id" : "B06",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 86400
+    },
+    "level" : "LOW",
+    "rules" : [ ],
+    "score" : 0
+  }, {
+    "id" : "B07",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 86401
+    },
+    "level" : "LOW",
+    "rules" : [ ],
+    "score" : 0
+  }, {
+    "id" : "B08",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 2,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ ],
+    "score" : 0
+  }, {
+    "id" : "B09",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ "RAPID_TRANSFERS" ],
+    "score" : 20
+  }, {
+    "id" : "B10",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 1,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ ],
+    "score" : 0
+  }, {
+    "id" : "B11",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 2,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ "REPEATED_FAILED_VERIFICATION" ],
+    "score" : 20
+  }, {
+    "id" : "B12",
+    "input" : {
+      "amount" : "8000.00",
+      "balance" : "10000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ ],
+    "score" : 0
+  }, {
+    "id" : "B13",
+    "input" : {
+      "amount" : "8000.01",
+      "balance" : "10000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ "BALANCE_DRAIN" ],
+    "score" : 15
+  }, {
+    "id" : "B14",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "0.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ ],
+    "score" : 0
+  }, {
+    "id" : "B15",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "23:59",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ ],
+    "score" : 0
+  }, {
+    "id" : "B16",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "00:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ "UNUSUAL_HOUR" ],
+    "score" : 10
+  }, {
+    "id" : "B17",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "04:59",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ "UNUSUAL_HOUR" ],
+    "score" : 10
+  }, {
+    "id" : "B18",
+    "input" : {
+      "amount" : "2500.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "05:00",
+      "payeeAgeSeconds" : 2592000
+    },
+    "level" : "LOW",
+    "rules" : [ ],
+    "score" : 0
+  }, {
+    "id" : "B23",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "160000.00",
+      "earlierTransfers" : 3,
+      "failedVerifications" : 2,
+      "istTime" : "02:00",
+      "payeeAgeSeconds" : 3600
+    },
+    "level" : "HIGH",
+    "rules" : [ "BALANCE_DRAIN", "NEW_BENEFICIARY", "RAPID_TRANSFERS", "REPEATED_FAILED_VERIFICATION", "UNUSUAL_HOUR", "VERY_HIGH_AMOUNT" ],
+    "score" : 140
+  }, {
+    "id" : "B24",
+    "input" : {
+      "amount" : "150000.00",
+      "balance" : "10000000.00",
+      "earlierTransfers" : 0,
+      "failedVerifications" : 0,
+      "istTime" : "12:00",
+      "payeeAgeSeconds" : null
+    },
+    "level" : "HIGH",
+    "rules" : [ "UNREGISTERED_PAYEE", "VERY_HIGH_AMOUNT" ],
+    "score" : 70
+  } ],
+  "generatedBy" : "FraudRuleSpecificationTest (do not edit by hand; see its Javadoc)",
+  "zone" : "Asia/Kolkata"
+}

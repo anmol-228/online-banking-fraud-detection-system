@@ -169,7 +169,17 @@ function hasOpenVerification(txn) {
 function transactionView(txn) {
   const state = getState();
   const source = state.accounts.find((a) => a.id === txn.sourceAccountId);
+  let reviewDueAt = null;
+  let customerResponse = null;
+  if (txn.status === 'PENDING' && txn.riskLevel === 'HIGH') {
+    const alert = state.alerts.find((a) => a.transactionId === txn.id);
+    const heldCase = alert && state.cases.find((c) => c.alertId === alert.id);
+    reviewDueAt = heldCase ? heldCase.reviewDueAt || null : null;
+    customerResponse = heldCase ? heldCase.customerResponse || null : null;
+  }
   return {
+    reviewDueAt,
+    customerResponse,
     id: txn.id,
     reference: txn.reference,
     sourceAccountNumber: source ? source.accountNumber : '',
@@ -243,6 +253,9 @@ function caseView(fraudCase) {
     createdAt: fraudCase.createdAt,
     updatedAt: fraudCase.updatedAt,
     closedAt: fraudCase.closedAt,
+    customerResponse: fraudCase.customerResponse || null,
+    customerRespondedAt: fraudCase.customerRespondedAt || null,
+    reviewDueAt: fraudCase.reviewDueAt || null,
   };
 }
 
@@ -370,6 +383,10 @@ function openCase(alert, txn, remarks) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       closedAt: null,
+      // Mirrors the backend: a review TARGET (never enforced) and the customer's own statement.
+      reviewDueAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+      customerResponse: null,
+      customerRespondedAt: null,
     };
     state.cases.unshift(created);
   });
@@ -584,6 +601,20 @@ const service = {
     if (payload.idempotencyKey) {
       const existing = state.transactions.find((t) => t.idempotencyKey === payload.idempotencyKey);
       if (existing) {
+        // Mirrors the backend: a key is honoured only for its owner and only for the same request
+        // (same source, destination and amount, compared as numbers). Anything else is a 409 that
+        // says nothing about the transfer that owns the key.
+        const originalSource = state.accounts.find((a) => a.id === existing.sourceAccountId);
+        const sameOwner = originalSource && originalSource.customerId === user.customerId;
+        const samePayload =
+          originalSource &&
+          originalSource.accountNumber === (payload.sourceAccountNumber || '').trim() &&
+          existing.destinationAccountNumber === destination &&
+          Number(existing.amount) === amount;
+        if (!sameOwner || !samePayload) {
+          return fail(409, 'IDEMPOTENCY_KEY_REUSED',
+            'This request key has already been used for a different request. Start a new transfer to get a new key.');
+        }
         return delay(transactionView(existing));
       }
     }
@@ -1062,10 +1093,16 @@ const service = {
     }
 
     const approve = String(payload.decision).toUpperCase() === 'APPROVE';
+    if (approve && fraudCase.customerResponse === 'NOT_MINE') {
+      return fail(409, 'CUSTOMER_REPORTED_NOT_MINE',
+        'The account holder reported this transfer as not theirs, so it cannot be approved. ' +
+        'Block it, or contact the customer and record why this report was wrong.');
+    }
     if (approve) {
-      settleApproved(txn, `Released by fraud review: ${payload.remarks}`);
+      // Fixed text on purpose: the analyst's remarks are for staff and must not reach the customer.
+      settleApproved(txn, 'Released by fraud review.');
     } else {
-      settleBlocked(txn, `Blocked by fraud review: ${payload.remarks}`);
+      settleBlocked(txn, 'Blocked by fraud review.');
     }
 
     mutate(() => {
@@ -1082,6 +1119,96 @@ const service = {
       `Decision ${String(payload.decision).toUpperCase()} on transaction ${txn.reference}: ${payload.remarks}`);
 
     return delay(caseView(fraudCase));
+  },
+
+  // ---- The customer's own actions on a held transfer (mirrors the backend) ----
+
+  /** Cancel a held transfer. Not a fraud finding: FAILED with a reason, funds released. */
+  cancelTransaction(ref) {
+    const user = requireCustomer();
+    const state = getState();
+    const txn = state.transactions.find((t) => t.reference === ref);
+    const source = txn && state.accounts.find((a) => a.id === txn.sourceAccountId);
+    if (!txn || !source || source.customerId !== user.customerId) {
+      return fail(404, 'NOT_FOUND', `Transaction ${ref} was not found.`);
+    }
+    if (txn.status !== 'PENDING' && txn.status !== 'PENDING_VERIFICATION') {
+      return fail(422, 'INVALID_STATE',
+        `This transfer is already ${txn.status.toLowerCase()} and can no longer be cancelled.`);
+    }
+    const alert = state.alerts.find((a) => a.transactionId === txn.id);
+    const heldCase = alert && state.cases.find((c) => c.alertId === alert.id);
+    mutate(() => {
+      txn.status = 'FAILED';
+      txn.statusReason = 'Cancelled by customer before release.';
+      txn.completedAt = new Date().toISOString();
+      if (alert) alert.status = 'CLOSED';
+      if (heldCase && !heldCase.status.startsWith('RESOLVED')) {
+        heldCase.status = 'RESOLVED_BLOCKED';
+        heldCase.remarks = 'Cancelled by the customer before review. This is not a fraud finding.';
+        heldCase.decidedBy = 'customer-cancel';
+        heldCase.closedAt = new Date().toISOString();
+      }
+    });
+    audit('CUSTOMER_CANCELLED', 'Transaction', txn.reference, 'Customer cancelled the held transfer before release');
+    notify(user.customerId, 'TRANSACTION', 'Transfer cancelled',
+      `Your transfer ${txn.reference} was cancelled at your request. No money left your account.`, txn.reference);
+    return delay(transactionView(txn));
+  },
+
+  /** The account holder's statement about a held HIGH-risk transfer: evidence only, write-once. */
+  respondToHold(ref, response) {
+    const user = requireCustomer();
+    const state = getState();
+    const txn = state.transactions.find((t) => t.reference === ref);
+    const source = txn && state.accounts.find((a) => a.id === txn.sourceAccountId);
+    if (!txn || !source || source.customerId !== user.customerId) {
+      return fail(404, 'NOT_FOUND', `Transaction ${ref} was not found.`);
+    }
+    if (response !== 'CONFIRMED_MINE' && response !== 'NOT_MINE') {
+      return fail(400, 'VALIDATION_FAILED', 'Use CONFIRMED_MINE or NOT_MINE.');
+    }
+    const alert = state.alerts.find((a) => a.transactionId === txn.id);
+    const heldCase = alert && state.cases.find((c) => c.alertId === alert.id);
+    if (!heldCase) {
+      return fail(422, 'NO_REVIEW_CASE', 'This transfer is not under fraud review, so there is nothing to confirm.');
+    }
+    if (heldCase.status.startsWith('RESOLVED')) {
+      return fail(422, 'INVALID_STATE', 'This review is already finished.');
+    }
+    const current = heldCase.customerResponse || null;
+    if (current !== null && !(current === 'CONFIRMED_MINE' && response === 'NOT_MINE')) {
+      return fail(409, 'RESPONSE_ALREADY_RECORDED',
+        'Your statement about this transfer was already recorded and cannot be changed.');
+    }
+    mutate(() => {
+      heldCase.customerResponse = response;
+      heldCase.customerRespondedAt = new Date().toISOString();
+    });
+    audit('CUSTOMER_RESPONSE_RECORDED', 'FraudCase', heldCase.reference,
+      `Customer statement recorded: ${response} (unverified same-session statement; evidence only, releases nothing)`);
+    return delay(transactionView(txn));
+  },
+
+  /** Evidence export and the mail-draft handoff need the real backend. */
+  escalationRecipients() {
+    requireUser();
+    return delay([]);
+  },
+
+  downloadEvidence() {
+    return fail(501, 'NOT_AVAILABLE_IN_SHOWCASE',
+      'Evidence export is available in the full-stack build, where it is produced by the server.');
+  },
+
+  escalate() {
+    return fail(501, 'NOT_AVAILABLE_IN_SHOWCASE',
+      'The mail-draft handoff is available in the full-stack build only.');
+  },
+
+  attestEscalation() {
+    return fail(501, 'NOT_AVAILABLE_IN_SHOWCASE',
+      'The mail-draft handoff is available in the full-stack build only.');
   },
 
   // ---- Administration ----------------------------------------------------

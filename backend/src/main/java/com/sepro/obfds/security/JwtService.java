@@ -6,6 +6,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
@@ -29,7 +30,15 @@ public class JwtService {
     private final Duration expiry;
 
     public JwtService(AppProperties properties) {
-        byte[] secretBytes = properties.getJwt().getSecret().getBytes(StandardCharsets.UTF_8);
+        String secret = properties.getJwt().getSecret();
+        if ((secret == null || secret.isBlank()) && !properties.getJwt().getSecretFile().isBlank()) {
+            // Local installation: one random secret per install, persisted outside the repository.
+            secret = LocalJwtSecretStore.loadOrCreate(Path.of(properties.getJwt().getSecretFile()));
+        }
+        if (secret == null) {
+            secret = "";
+        }
+        byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (secretBytes.length < 32) {
             throw new IllegalStateException(
                     "obfds.jwt.secret must be at least 32 characters long for HS256 signing");

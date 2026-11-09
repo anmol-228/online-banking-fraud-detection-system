@@ -60,7 +60,14 @@ Every failure returns the same body, so a client never has to interpret an unkno
 `INVALID_VERIFICATION_CODE` · `VERIFICATION_FAILED` · `VERIFICATION_EXPIRED` ·
 `NO_PENDING_VERIFICATION` · `CASE_ALREADY_RESOLVED` · `DISPUTE_ALREADY_OPEN` ·
 `DISPUTE_ALREADY_CLOSED` · `CANNOT_REMOVE_OWN_ADMIN_ROLE` · `CANNOT_DISABLE_SELF` ·
-`CONCURRENT_UPDATE` · `DATA_INTEGRITY_VIOLATION` · `SERVICE_UNAVAILABLE` · `INTERNAL_ERROR`
+`CONCURRENT_UPDATE` · `DATA_INTEGRITY_VIOLATION` · `SERVICE_UNAVAILABLE` · `INTERNAL_ERROR` ·
+`REGISTRATION_CLOSED` · `TOO_MANY_ATTEMPTS` · `IDEMPOTENCY_KEY_REUSED` · `RESPONSE_ALREADY_RECORDED` ·
+`NO_REVIEW_CASE` · `CUSTOMER_REPORTED_NOT_MINE` · `INVALID_RECIPIENT_KEY` · `UNKNOWN_RECIPIENT` ·
+`ESCALATION_LIMIT` · `NO_HANDOFF`
+
+`CONCURRENT_UPDATE` (409) now means "another operation held the same account at that moment; nothing
+was changed, try again". Money-moving operations are serialised per account, so it is a backstop and not
+an expected result.
 
 ---
 
@@ -81,6 +88,18 @@ Every failure returns the same body, so a client never has to interpret an unkno
 
 Creates a login, a banking profile and one opening savings account. Returns `201` with a token.
 
+Registration is governed by `obfds.registration.mode`:
+
+| Mode | Behaviour |
+|---|---|
+| `open` | anyone may register (only allowed on a loopback-only `dev`/`localdemo` run) |
+| `invite` | the request must carry the shared `inviteCode`; a wrong or missing one is refused |
+| `closed` | always refused (the default, and the only default for a public deployment) |
+
+A refused request returns `403 REGISTRATION_CLOSED` with the same message in every case, so a wrong code
+cannot be told apart from a closed door. An optional `inviteCode` string (max 100) is read only in `invite`
+mode.
+
 ### `POST /api/auth/login`
 
 ```json
@@ -98,8 +117,16 @@ Creates a login, a banking profile and one opening savings account. Returns `201
 }
 ```
 
-A wrong password and an unknown username both return the same generic message, so the response does
-not reveal which usernames exist.
+A wrong password, an unknown username and a **disabled** account all return the same `401
+INVALID_CREDENTIALS`, so the response reveals nothing about which usernames exist or are disabled.
+
+`username` is limited to 60 characters and `password` to 128; longer values are a `400` and never reach the
+password hash. Repeated failures from one client for one username lock that pair for a short, doubling time:
+`429 TOO_MANY_ATTEMPTS` with a `Retry-After` header (seconds). While locked, even the correct password is
+refused. A separate per-address ceiling slows a client that cycles through many usernames.
+
+Every authenticated request re-reads the user from the database: a token for a disabled or deleted user is
+`401` immediately, and the roles in force are the database's, not the token's.
 
 ### `GET /api/auth/me`
 
@@ -192,13 +219,29 @@ Returns `201`. The `status` field tells the caller what happened:
   "verificationRequired": true,
   "initiatedBy": "ravi.kumar",
   "createdAt": "2026-08-19T18:05:00Z",
-  "completedAt": null
+  "completedAt": null,
+  "reviewDueAt": null,
+  "customerResponse": null
 }
 ```
 
-`idempotencyKey` is optional but recommended: sending the same key twice returns the original
-transaction instead of creating a second one. Without a key, an identical transfer within 60
-seconds is rejected with `409 DUPLICATE_TRANSACTION`.
+`reviewDueAt` and `customerResponse` are set only while a HIGH-risk transfer is held: the *target* time an
+analyst is expected to review it (never enforced) and what the customer said about it.
+
+**Idempotency.** `idempotencyKey` is optional but recommended. The key belongs to one customer and one
+request (source account, destination account, amount compared as a number, so `1500` equals `1500.00`):
+
+| Situation | Result |
+|---|---|
+| same customer, same request, again (timeout, retry, two in flight at once) | `201` with the **original** transfer; money moves once |
+| same customer, **different** request | `409 IDEMPOTENCY_KEY_REUSED` |
+| **another customer's** key | `409 IDEMPOTENCY_KEY_REUSED`, with nothing about the other transfer in the response |
+| a **new** key with the same details | a **new, intentional** transfer (a key identifies one attempt, not "similar" payments) |
+
+Without a key, an identical transfer within 60 seconds is rejected with `409 DUPLICATE_TRANSACTION`.
+
+A client should keep the same key until it has a definitive answer, and replace it only after a definitive
+rejection (4xx other than `409 CONCURRENT_UPDATE`/`429`); the web front end does exactly this.
 
 ### Other transaction endpoints
 
@@ -208,13 +251,34 @@ seconds is rejected with `409 DUPLICATE_TRANSACTION`.
 | `GET` | `/api/transactions/{reference}` | Details and status |
 | `GET` | `/api/transactions/{reference}/verification` | Outstanding challenge state |
 | `POST` | `/api/transactions/{reference}/verify` | Submit the six-digit code |
+| `POST` | `/api/transactions/{reference}/cancel` | Cancel a transfer that is still held |
+| `POST` | `/api/transactions/{reference}/response` | State whether a held HIGH-risk transfer is yours |
 
 ```json
 { "code": "449657" }
 ```
 
 A wrong code returns `422 INVALID_VERIFICATION_CODE` with the number of attempts remaining. Three
-failures block the transfer and escalate the alert to a fraud case.
+failures block the transfer and escalate the alert to a fraud case. A code that **expires** unused ends the
+transfer `FAILED` (not `BLOCKED`), frees the funds and closes the alert; entering it afterwards returns
+`410 VERIFICATION_EXPIRED`. A hold whose code has expired is also shown as `FAILED` and no longer counts
+toward `reservedAmount`.
+
+Expiry is **derived on read and written when the hold is next touched** (a verification attempt, a cancel, or
+another transfer from the same account); no background job runs. Until then the funds are already free and the
+customer already sees `FAILED`, but the stored transfer and alert still read `PENDING_VERIFICATION` / `OPEN`, so
+an analyst's alert list can still show that alert as open, and the `VERIFICATION_EXPIRED` audit entry and the
+customer notification appear only when the hold is touched. This is a known, documented limitation, pinned by
+test EXP-5.
+
+**`POST …/cancel`** is allowed while the status is `PENDING` or `PENDING_VERIFICATION`. The transfer becomes
+`FAILED` with the reason "Cancelled by customer before release.", the funds are released, a related case is
+closed with a remark that this is *not a fraud finding*. Anything else is `422 INVALID_STATE`.
+
+**`POST …/response`** body `{ "response": "CONFIRMED_MINE" | "NOT_MINE" }`. Recorded once per held HIGH-risk
+transfer: a later `NOT_MINE` may replace `CONFIRMED_MINE`, nothing else may change it
+(`409 RESPONSE_ALREADY_RECORDED`). It is **evidence for the analyst only**: it never releases or blocks the
+transfer, and a transfer with no review case is `422 NO_REVIEW_CASE`.
 
 ---
 
@@ -265,6 +329,10 @@ Only one dispute may be open per transaction at a time.
 | `GET` | `/api/fraud-cases/{reference}` | One case |
 | `POST` | `/api/fraud-cases/{reference}/assign` | Take ownership |
 | `POST` | `/api/fraud-cases/{reference}/decision` | Approve or block |
+| `GET` | `/api/fraud-cases/{reference}/evidence` | Download the evidence file (JSON attachment) |
+| `GET` | `/api/fraud-cases/escalation-recipients` | The configured team mailboxes (keys; address partly hidden) |
+| `POST` | `/api/fraud-cases/{reference}/escalation` | Prepare a mail **draft** to one configured mailbox |
+| `POST` | `/api/fraud-cases/{reference}/escalation/attest` | Record that the user sent the draft (self-reported) |
 
 ```json
 {
@@ -275,6 +343,55 @@ Only one dispute may be open per transaction at a time.
 
 `remarks` is mandatory — the decision is written to the audit trail, and a decision without a
 reason cannot be reviewed later. A case cannot be decided twice.
+
+`remarks` are **for staff only**. They are stored on the case and in the case's audit entry, and are never
+copied into anything the customer can read: the customer sees the fixed sentences "Released by fraud review." or
+"Blocked by fraud review." as the transfer's status reason (and in the block notification), and the evidence
+export omits the remarks altogether.
+
+The case response also carries `customerResponse`, `customerRespondedAt` and `reviewDueAt`. Two rules protect
+the money:
+
+- **The outcome is derived from what happened to the transfer.** `RESOLVED_APPROVED` is returned only if the
+  transfer really became `APPROVED`. If the release could not be funded the transfer ends `FAILED`, the case
+  is `RESOLVED_BLOCKED`, and its remarks say the approval was not applied.
+- **`APPROVE` after the customer said "not mine"** is refused: `409 CUSTOMER_REPORTED_NOT_MINE`. Blocking
+  still works.
+
+### Evidence export
+
+`GET …/evidence` returns `application/json` as a download (`Content-Disposition: attachment`,
+`X-Content-Type-Options: nosniff`, `Cache-Control: no-store`). It contains the case, the transfer (account
+numbers masked to the last four digits, no name), the customer **number**, each rule that fired with its
+points, the verification counts, the customer's labelled statement and a timeline of actions and outcomes. It
+leaves out the customer's name, e-mail, telephone and address, the transfer's free-text description, the
+idempotency key, code hashes and every audit "details" text. **No free text is exported at all:** the analyst's
+remarks and the transfer's status-reason sentence (which quotes those remarks) are omitted. In their place the
+file carries `analystRemarksOmitted` and `analystRemarkCharacters` (the length only) in the case section, and a
+fixed `outcomeCode` (for example `BLOCKED_BY_ANALYST`) in the transfer section. A reviewer reads the remarks in
+the case screen. Keys are sorted and money is a plain decimal string, so the same state
+always gives the same bytes (the export's own bookkeeping — exports, mail drafts, "I sent it" — is not listed in the
+timeline, so exporting again or preparing a draft does not change the hash), and an `integrity` block holds a SHA-256 over everything else, which is also
+recorded in the audit trail (`EVIDENCE_EXPORTED`). Customers get `403`. The file says plainly that it is a
+simulation artefact, not a report to anyone.
+
+### Mail-draft handoff
+
+`POST …/escalation` body `{ "recipientKey": "ops" }` selects a mailbox **by key**; the request can never carry
+an address. The server validates the key against a strict pattern and the configured list, builds a fixed
+subject (`[SIMULATION] OBFDS case <reference>`) and a body containing only the case reference and the evidence
+hash, and returns a `mailto:` link:
+
+```json
+{ "state": "ESCALATION_HANDOFF_ISSUED", "recipientKey": "ops", "mailto": "mailto:…?subject=…&body=…",
+  "evidenceSha256": "…", "notice": "This is a draft, not delivery. …" }
+```
+
+**The system sends nothing.** Opening the link is not delivery; the user sends it from their own mail program.
+`POST …/escalation/attest` records "the user says they sent it" (state `ESCALATION_USER_ATTESTED_SENT`, labelled
+self-reported). A malformed or injected key is `400`, an unconfigured one `422`, and more than the daily limit
+(per staff user, default 10) is `429 ESCALATION_LIMIT`. No hold, expiry, block or review target creates a handoff
+automatically. Configured mailboxes of authorities, regulators or banks are refused at start-up.
 
 ---
 

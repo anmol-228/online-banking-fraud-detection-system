@@ -148,10 +148,10 @@ the reserved-amount sum and the velocity rule filter on.
 | No duplicate logins, emails, account numbers, references | Unique constraints |
 | No duplicate payee for one customer | Composite unique on (`customer_id`, `beneficiary_account_number`) |
 | One fraud case per alert | Unique constraint on `fraud_case.alert_id` |
-| No duplicate transfer | Unique `idempotency_key` plus a 60-second duplicate window |
-| Concurrent balance updates | `@Version` optimistic locking; a losing update is rejected with 409 rather than silently overwriting |
+| No duplicate transfer | Unique `idempotency_key` (honoured only for its owner and the same request) plus a 60-second duplicate window for requests with no key |
+| Concurrent balance updates | Row locks taken first, in one global order (case, then accounts by id), under `READ_COMMITTED`; `@Version` optimistic locking remains as a second line of defence |
 | Atomic settlement | Debit, credit and status change inside one `@Transactional` method |
-| Over-commitment of funds | Available balance excludes amounts reserved by pending transfers |
+| Over-commitment of funds | Available balance excludes amounts reserved by pending transfers, read only after the account row is locked; a hold whose verification code expired no longer reserves |
 | Invalid state transitions | `APPROVED`, `BLOCKED`, `FAILED` are final; further changes rejected |
 | Monetary precision | `DECIMAL(15,2)` and `BigDecimal`, never floating point |
 | History stays readable | Beneficiaries are deactivated, never deleted |
@@ -164,20 +164,58 @@ the reserved-amount sum and the velocity rule filter on.
 | Profile | Database | `ddl-auto` | Use |
 |---|---|---|---|
 | `dev` | H2 in-memory | `create-drop` | Local development; fresh seeded dataset every start |
-| `test` | H2 in-memory, isolated | `create-drop` | Automated tests |
-| `mysql` | MySQL 8 | `update` | Intended target environment — configured, not yet connected or exercised |
+| `test` | H2 in-memory, isolated | `create-drop` | Automated tests (the same suite also runs against MySQL, which the tests then create and drop) |
+| `mysql` (with `localdemo` or `public`) | MySQL 8.4 | `validate` | A persistent installation. The runtime **never changes the schema** |
 
-`update` is a pragmatic choice for a project at this stage. A production deployment would use
-Flyway or Liquibase so that every schema change is versioned, reviewed and reversible — see the
-[deployment roadmap](full-stack-deployment-roadmap.md).
+### Versioned migrations (Flyway)
+
+The MySQL schema is owned by `backend/src/main/resources/db/migration`:
+
+| Version | What | Notes |
+|---|---|---|
+| `V1__baseline.sql` | The full schema: 13 tables, 12 native `ENUM` columns, 12 `AUTO_INCREMENT` identity columns, all foreign keys and unique constraints | Derived from the schema Hibernate generated on MySQL. Two kinds of line were removed from the raw dump: statements that delete tables, and the **table-level** `AUTO_INCREMENT=<n>` counter (a snapshot of one machine's history). The **column-level** `id bigint NOT NULL AUTO_INCREMENT` is deliberately kept: JPA's `IDENTITY` generation depends on it |
+| `V2__fraud_case_customer_response.sql` | Three nullable columns on `fraud_case`: `customer_response`, `customer_responded_at`, `review_due_at` | Additive: no default, no existing row changes, no `ENUM` altered. The previous build keeps running against it, so a code rollback does not need a database restore |
+
+How it is applied, and why it is shaped this way:
+
+- Flyway does **not** run inside the application (`spring.flyway.enabled=false`). The schema is changed only
+  by the separate migrator (`com.sepro.obfds.migrate.Migrator`) with a DDL account. The service runs as an
+  account that can only `SELECT/INSERT/UPDATE/DELETE`, and Hibernate's `validate` plus a startup version check
+  refuse a database that is behind the build. The application does **not** claim to be running Flyway
+  validation at start-up.
+- `clean` does not exist in the migrator and Flyway's own clean is disabled. `migrate` over existing tables
+  that have no history is refused by Flyway (so V1 can never be run over a populated database); adopting an
+  existing database is an explicit `baseline` that needs a confirmation flag and writes one history row.
+- H2 (`dev`/`test`) keeps `create-drop`; the V1 SQL is MySQL-specific.
+
+What was verified on MySQL 8.4.13 (`SchemaMigrationMysqlTest`, 12 tests, and a drill on a restored copy of the
+real demo data): an empty database migrates to V2; the identity columns generate ids; every `ENUM` column lists
+exactly its Java enum's values; Hibernate `validate` accepts the migrated schema and the seeder inserts through
+JPA; a populated pre-Flyway database is refused by a blind `migrate`, adopted by `baseline`, upgraded to V2 with
+every other table byte-for-byte unchanged; an edited migration is detected (checksum); the service refuses to
+start on an out-of-date or history-less database; restoring the pre-migration dump gives back identical data.
+Flyway 11.7 officially tests MySQL up to 8.1 and logs a notice on 8.4; the combination is verified here, not
+vendor-certified.
+
+### New `fraud_case` columns
+
+| Column | Type | Meaning |
+|---|---|---|
+| `customer_response` | VARCHAR(16) NULL | `CONFIRMED_MINE` or `NOT_MINE`; written once; evidence only |
+| `customer_responded_at` | DATETIME(6) NULL | when it was recorded (UTC) |
+| `review_due_at` | DATETIME(6) NULL | the review **target** (never enforced) |
+
+All timestamps are stored in UTC. The unusual-hour fraud rule reads the clock hour in the configured zone
+(`Asia/Kolkata`) from the application's own clock, never from the database server's session time.
 
 ---
 
 ## 7. Seed data
 
-`DataSeeder` creates the five roles in every environment, and a fictional demo dataset when
-`obfds.seed-demo-data` is true **and** no users exist yet. The skip condition means restarting
-against MySQL does not duplicate data.
+`DataSeeder` creates the five roles in every environment, and a fictional demo dataset according to
+`obfds.seed.mode`: `demo-fixed` (the published demo passwords, isolated local runs only), `bootstrap-env` (the
+same dataset with five passwords taken from the environment) or `none` (roles only). It seeds only when no
+users exist yet, so restarting against MySQL does not duplicate data.
 
 Seeded: 6 users (2 customers, 4 staff), 2 customers, 3 accounts, 3 beneficiaries.
 

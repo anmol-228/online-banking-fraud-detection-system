@@ -9,7 +9,7 @@ import { DEMO_PERSONAS } from '../services/showcase/showcaseData.js';
 
 /** Login screen (FR-02). */
 export default function LoginPage() {
-  const { login, isAuthenticated, loading } = useAuth();
+  const { login, isAuthenticated, loading, serverWaking } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -19,7 +19,11 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (loading) {
-    return <Loader label="Starting" />;
+    return (
+      <Loader
+        label={serverWaking ? 'The server is waking up. This can take up to a minute.' : 'Starting'}
+      />
+    );
   }
   if (isAuthenticated) {
     return <Navigate to="/" replace />;
@@ -127,8 +131,8 @@ export default function LoginPage() {
           ) : (
             <p>
               <strong>Demonstration system.</strong> This application is not connected to a real
-              financial institution and processes no real money. Demo credentials are listed in the
-              repository documentation.
+              financial institution and processes no real money. Sign-in details come from whoever is
+              running this demonstration.
             </p>
           )}
         </div>

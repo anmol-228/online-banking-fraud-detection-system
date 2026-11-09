@@ -1,5 +1,6 @@
 package com.sepro.obfds.controller;
 
+import com.sepro.obfds.dto.CustomerResponseRequest;
 import com.sepro.obfds.dto.PageResponse;
 import com.sepro.obfds.dto.TransactionResponse;
 import com.sepro.obfds.dto.TransferRequest;
@@ -61,6 +62,22 @@ public class TransactionController {
     }
 
     /** FR-14, FR-15: submit the verification code to release a held transfer. */
+    /** The customer withdraws a transfer that is still held. Not a fraud finding. */
+    @PostMapping("/{reference}/cancel")
+    public ResponseEntity<TransactionResponse> cancel(@PathVariable String reference) {
+        return ResponseEntity.ok(transactionService.cancel(reference));
+    }
+
+    /**
+     * The account holder states whether a held HIGH-risk transfer is theirs. Evidence for the
+     * analyst only: it is recorded once and never releases money.
+     */
+    @PostMapping("/{reference}/response")
+    public ResponseEntity<TransactionResponse> respond(
+            @PathVariable String reference, @Valid @RequestBody CustomerResponseRequest request) {
+        return ResponseEntity.ok(transactionService.recordCustomerResponse(reference, request.response()));
+    }
+
     @PostMapping("/{reference}/verify")
     public ResponseEntity<TransactionResponse> verify(
             @PathVariable String reference, @Valid @RequestBody VerificationRequestDto request) {

@@ -1,0 +1,39 @@
+# =============================================================================
+# localdemo profile — a single-machine installation (the offline demonstration).
+#
+# Use together with `mysql`:   --spring.profiles.active=mysql,localdemo
+#
+# Everything here is safe ONLY because the process listens on loopback and talks to a
+# database on this machine; StartupSafetyGuard enforces that (it treats any other bind
+# address or database host as "reachable from outside" and then refuses the fixed demo
+# passwords, open registration and the file-persisted secret below).
+#
+# This file is committed on purpose and holds no secret. (It is deliberately NOT called
+# application-local.yml: that name is git-ignored for developers' own private overrides.)
+#
+# No credentials appear here: MYSQL_USERNAME / MYSQL_PASSWORD come from the environment.
+# =============================================================================
+server:
+  address: 127.0.0.1
+  tomcat:
+    threads:
+      max: 4          # half of the pool of 8 (see application.yml)
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/${OBFDS_DB_NAME:obfds}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    hikari:
+      maximum-pool-size: 8
+      connection-timeout: 20000
+      # A lock wait must end well before the pool's connection timeout, so one stuck row lock
+      # surfaces as a clean 409 rather than as pool starvation.
+      connection-init-sql: "SET SESSION innodb_lock_wait_timeout = 10"
+obfds:
+  seed:
+    mode: demo-fixed
+  registration:
+    mode: open
+  jwt:
+    # One random secret per installation, created on first start and kept outside the repository.
+    secret-file: ${OBFDS_JWT_SECRET_FILE:${user.home}/.obfds/jwt.secret}
+  cors:
+    allowed-origins: http://localhost:5173,http://127.0.0.1:5173

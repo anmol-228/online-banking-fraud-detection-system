@@ -20,8 +20,6 @@
     <properties>
         <java.version>21</java.version>
         <jjwt.version>0.12.6</jjwt.version>
-        <!-- Overridden with -Dconcurrency.excludedGroups= to run the concurrency test on its own. -->
-        <concurrency.excludedGroups>concurrency</concurrency.excludedGroups>
     </properties>
 
     <dependencies>
@@ -75,6 +73,20 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!--
+            Versioned schema migrations. Flyway is NOT run by the application at start-up (see
+            spring.flyway.enabled=false in application.yml): the schema is changed only by the
+            separate migrator (com.sepro.obfds.migrate.Migrator) with DDL credentials, so the
+            running service can use a database account that cannot alter tables.
+        -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -97,17 +109,42 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <!--
-                        The concurrency test (ConcurrentTransferApiTest) commits real balance
-                        changes and is not safe to run alongside tests that assume the seeded
-                        demo balances are untouched, and a genuinely racy test is not a fit for
-                        a must-pass CI gate until it has proven itself stable. Run it on its own
-                        with:
-                        mvn test -Dgroups=concurrency -Dconcurrency.excludedGroups= -Dtest=ConcurrentTransferApiTest
-                    -->
-                    <excludedGroups>${concurrency.excludedGroups}</excludedGroups>
-                </configuration>
+                <!--
+                    Two executions, both bound to `mvn test`, each in its own forked JVM:
+
+                    1. default-test          every test EXCEPT those tagged `concurrency`
+                    2. committed-data-tests  ONLY the tests tagged `concurrency`
+
+                    The tagged tests commit real rows and run genuinely overlapping transactions
+                    (a race only exists if two requests reach the database before either commits),
+                    so they create their own throw-away customers and must not share a JVM with
+                    tests that assume the seeded balances are untouched. Splitting them keeps one
+                    `mvn test` honest: both executions run and each reports its own test count,
+                    and CI asserts that both counts are non-zero (an excluded test is not
+                    "skipped", so a green exit code alone proves nothing).
+
+                    To run one class on its own add -Dsurefire.failIfNoSpecifiedTests=false, e.g.
+                    mvn test -Dtest=MoneyPathIntegrityTest -Dsurefire.failIfNoSpecifiedTests=false
+                -->
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <configuration>
+                            <excludedGroups>concurrency</excludedGroups>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>committed-data-tests</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <groups>concurrency</groups>
+                            <excludedGroups></excludedGroups>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

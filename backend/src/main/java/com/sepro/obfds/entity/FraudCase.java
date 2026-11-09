@@ -47,6 +47,20 @@ public class FraudCase {
     @Column(name = "decided_by", length = 60)
     private String decidedBy;
 
+    /**
+     * What the transfer's owner said about the held transfer: CONFIRMED_MINE or NOT_MINE. Written
+     * once. It is evidence for the analyst and never releases or blocks money on its own.
+     */
+    @Column(name = "customer_response", length = 16)
+    private String customerResponse;
+
+    @Column(name = "customer_responded_at")
+    private Instant customerRespondedAt;
+
+    /** The time by which an analyst is expected to review this case - a target, not an enforced deadline. */
+    @Column(name = "review_due_at")
+    private Instant reviewDueAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -118,6 +132,30 @@ public class FraudCase {
 
     public void setDecidedBy(String decidedBy) {
         this.decidedBy = decidedBy;
+    }
+
+    public String getCustomerResponse() {
+        return customerResponse;
+    }
+
+    public void setCustomerResponse(String customerResponse) {
+        this.customerResponse = customerResponse;
+    }
+
+    public Instant getCustomerRespondedAt() {
+        return customerRespondedAt;
+    }
+
+    public void setCustomerRespondedAt(Instant customerRespondedAt) {
+        this.customerRespondedAt = customerRespondedAt;
+    }
+
+    public Instant getReviewDueAt() {
+        return reviewDueAt;
+    }
+
+    public void setReviewDueAt(Instant reviewDueAt) {
+        this.reviewDueAt = reviewDueAt;
     }
 
     public Instant getCreatedAt() {

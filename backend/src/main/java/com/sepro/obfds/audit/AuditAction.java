@@ -30,6 +30,15 @@ public final class AuditAction {
     public static final String USER_STATUS_UPDATED = "USER_STATUS_UPDATED";
     public static final String REPORT_GENERATED = "REPORT_GENERATED";
 
+    // Fraud workflow (customer cancel / statement, verification expiry, evidence, escalation handoff).
+    public static final String CUSTOMER_CANCELLED = "CUSTOMER_CANCELLED";
+    public static final String CUSTOMER_RESPONSE_RECORDED = "CUSTOMER_RESPONSE_RECORDED";
+    public static final String VERIFICATION_EXPIRED = "VERIFICATION_EXPIRED";
+    public static final String EVIDENCE_EXPORTED = "EVIDENCE_EXPORTED";
+    public static final String ESCALATION_RECORDED = "ESCALATION_RECORDED";
+    public static final String ESCALATION_HANDOFF_ISSUED = "ESCALATION_HANDOFF_ISSUED";
+    public static final String ESCALATION_USER_ATTESTED_SENT = "ESCALATION_USER_ATTESTED_SENT";
+
     private AuditAction() {
         // Constants only.
     }

@@ -72,20 +72,65 @@ public class DataSeeder implements ApplicationRunner {
         this.appProperties = appProperties;
     }
 
+    /** The five passwords a seed run needs, one per kind of user. */
+    private record SeedPasswords(String admin, String analyst, String officer, String sysadmin, String customer) {
+        static SeedPasswords published() {
+            return new SeedPasswords(DEMO_ADMIN_PASSWORD, DEMO_ANALYST_PASSWORD, DEMO_OFFICER_PASSWORD,
+                    DEMO_SYSADMIN_PASSWORD, DEMO_CUSTOMER_PASSWORD);
+        }
+    }
+
+    /**
+     * Seeds according to {@code obfds.seed.mode}:
+     * <ul>
+     *   <li>{@code demo-fixed} - the synthetic dataset with the passwords published in the
+     *       repository. For an isolated local run only; {@link StartupSafetyGuard} refuses it
+     *       anywhere reachable from outside.</li>
+     *   <li>{@code bootstrap-env} - the same synthetic dataset, with passwords taken from the
+     *       environment, so a public deployment has no password anyone can read in the source.</li>
+     *   <li>{@code none} - reference roles only.</li>
+     * </ul>
+     */
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
         seedRoles();
 
-        if (!appProperties.isSeedDemoData()) {
-            log.info("Demo data seeding is disabled (obfds.seed-demo-data=false).");
+        String mode = appProperties.isSeedDemoData()
+                ? appProperties.getSeed().getMode().toLowerCase(java.util.Locale.ROOT)
+                : "none";
+        if (mode.equals("none")) {
+            log.info("User seeding is disabled (seed mode none).");
             return;
         }
         if (userRepository.count() > 0) {
             log.info("Users already exist, skipping demo data seeding.");
             return;
         }
-        seedDemoData();
+        SeedPasswords passwords = switch (mode) {
+            case "demo-fixed" -> SeedPasswords.published();
+            case "bootstrap-env" -> bootstrapPasswords();
+            default -> throw new IllegalStateException("Unknown seed mode: " + mode);
+        };
+        seedDemoData(passwords);
+    }
+
+    private SeedPasswords bootstrapPasswords() {
+        AppProperties.Seed.Bootstrap env = appProperties.getSeed().getBootstrap();
+        SeedPasswords passwords = new SeedPasswords(
+                env.getAdminPassword(), env.getAnalystPassword(), env.getOfficerPassword(),
+                env.getSysadminPassword(), env.getCustomerPassword());
+        // The startup guard has already checked these; the seeder repeats the check because it is
+        // the last thing standing between an empty password and a real account.
+        for (String password : new String[] {
+            passwords.admin(), passwords.analyst(), passwords.officer(), passwords.sysadmin(), passwords.customer()}) {
+            if (password == null || password.length() < 12 || StartupSafetyGuard.PUBLISHED_DEMO_PASSWORDS.contains(password)) {
+                throw new IllegalStateException(
+                        "Seed mode bootstrap-env requires five strong passwords of at least 12 characters in "
+                                + "obfds.seed.bootstrap.*; none may be a published demo password.");
+            }
+        }
+        return passwords;
     }
 
     /** Roles are reference data and must exist in every environment. */
@@ -101,28 +146,28 @@ public class DataSeeder implements ApplicationRunner {
         roleRepository.findByName(name).orElseGet(() -> roleRepository.save(new UserRole(name, description)));
     }
 
-    private void seedDemoData() {
+    private void seedDemoData(SeedPasswords passwords) {
         log.info("Seeding fictional demo data for the Online Banking and Fraud Detection System.");
 
         // ---- Bank staff -------------------------------------------------
-        createStaffUser("admin.bank", DEMO_ADMIN_PASSWORD, "Priya Deshmukh",
+        createStaffUser("admin.bank", passwords.admin(), "Priya Deshmukh",
                 "priya.deshmukh@demobank.example", RoleName.BANK_ADMIN);
-        createStaffUser("analyst.fraud", DEMO_ANALYST_PASSWORD, "Arjun Mehta",
+        createStaffUser("analyst.fraud", passwords.analyst(), "Arjun Mehta",
                 "arjun.mehta@demobank.example", RoleName.FRAUD_ANALYST);
-        createStaffUser("ops.officer", DEMO_OFFICER_PASSWORD, "Kavya Iyer",
+        createStaffUser("ops.officer", passwords.officer(), "Kavya Iyer",
                 "kavya.iyer@demobank.example", RoleName.OPS_OFFICER);
-        createStaffUser("sys.admin", DEMO_SYSADMIN_PASSWORD, "Rohit Verma",
+        createStaffUser("sys.admin", passwords.sysadmin(), "Rohit Verma",
                 "rohit.verma@demobank.example", RoleName.SYSTEM_ADMIN);
 
         // ---- Customers --------------------------------------------------
         Customer ravi = createCustomer(
-                "ravi.kumar", DEMO_CUSTOMER_PASSWORD, "Ravi Kumar", "ravi.kumar@demomail.example",
+                "ravi.kumar", passwords.customer(), "Ravi Kumar", "ravi.kumar@demomail.example",
                 "CUST10000001", "9876500011", "12 MG Road, Pune, Maharashtra");
         Account raviSavings = createAccount(ravi, "900000000001", AccountType.SAVINGS, "150000.00");
         createAccount(ravi, "900000000002", AccountType.CURRENT, "60000.00");
 
         Customer meera = createCustomer(
-                "meera.nair", DEMO_CUSTOMER_PASSWORD, "Meera Nair", "meera.nair@demomail.example",
+                "meera.nair", passwords.customer(), "Meera Nair", "meera.nair@demomail.example",
                 "CUST10000002", "9876500022", "44 Residency Road, Bengaluru, Karnataka");
         Account meeraSavings = createAccount(meera, "900000000003", AccountType.SAVINGS, "120000.00");
 

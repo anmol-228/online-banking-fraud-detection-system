@@ -27,11 +27,14 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final CurrentUserService currentUserService;
+    private final java.time.Clock clock;
 
     public AccountService(
             AccountRepository accountRepository,
             TransactionRepository transactionRepository,
-            CurrentUserService currentUserService) {
+            CurrentUserService currentUserService,
+            java.time.Clock clock) {
+        this.clock = clock;
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.currentUserService = currentUserService;
@@ -84,7 +87,7 @@ public class AccountService {
      */
     @Transactional(readOnly = true)
     public BigDecimal reservedAmount(Account account) {
-        BigDecimal reserved = transactionRepository.sumReservedAmount(account.getId());
+        BigDecimal reserved = transactionRepository.sumReservedAmount(account.getId(), clock.instant());
         return reserved == null ? BigDecimal.ZERO : reserved;
     }
 

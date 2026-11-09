@@ -1,6 +1,7 @@
 package com.sepro.obfds.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import com.sepro.obfds.security.TooManyAttemptsException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -9,12 +10,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -99,16 +102,47 @@ public class GlobalExceptionHandler {
                         401, "INVALID_CREDENTIALS", "Invalid username or password.", request.getRequestURI()));
     }
 
-    @ExceptionHandler(DisabledException.class)
-    public ResponseEntity<ApiError> handleDisabled(HttpServletRequest request) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiError.of(
-                        403,
-                        "ACCOUNT_DISABLED",
-                        "This login has been disabled. Please contact the bank administrator.",
-                        request.getRequestURI()));
+    /**
+     * A disabled login is reported exactly like a wrong password. Saying "this account is
+     * disabled" would tell an attacker which usernames exist, and gains the genuine user nothing
+     * they could not learn by asking the administrator (SEC-1).
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiError> handleAuthenticationFailure(HttpServletRequest request) {
+        return handleBadCredentials(request);
     }
 
+    /** A login attempt refused by the throttle; tells the client how long to wait (SEC-4). */
+    @ExceptionHandler(TooManyAttemptsException.class)
+    public ResponseEntity<ApiError> handleTooManyAttempts(
+            TooManyAttemptsException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
+                .body(ApiError.of(429, ex.getCode(), ex.getMessage(), request.getRequestURI()));
+    }
+
+    /**
+     * The database refused a row lock, hit a deadlock or timed out waiting for a lock.
+     *
+     * <p>Money-moving code takes its locks in a fixed order, so this is a backstop and not an
+     * expected path. It is still answered deterministically (409, safe to retry) rather than as a
+     * server fault, because nothing was applied: the whole transaction rolled back.</p>
+     */
+    @ExceptionHandler({
+        PessimisticLockingFailureException.class,
+        jakarta.persistence.PessimisticLockException.class,
+        jakarta.persistence.LockTimeoutException.class
+    })
+    public ResponseEntity<ApiError> handlePessimisticLock(Exception ex, HttpServletRequest request) {
+        log.warn("Row lock refused on {}", request.getRequestURI(), ex);
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(
+                        409,
+                        "CONCURRENT_UPDATE",
+                        "Another operation was working on this account at the same time. "
+                                + "Nothing was changed; please try again.",
+                        request.getRequestURI()));
+    }
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)

@@ -51,6 +51,23 @@ export function readError(error) {
   return data.message || 'Something went wrong while processing your request.';
 }
 
+/**
+ * Like {@link readError}, for a request made with responseType 'blob'. When such a request fails the
+ * error body arrives as a Blob, which has to be read as text before the message can be shown.
+ */
+export async function readBlobError(error) {
+  const data = error?.response?.data;
+  if (data instanceof Blob) {
+    try {
+      const parsed = JSON.parse(await data.text());
+      return parsed.message || 'Something went wrong while processing your request.';
+    } catch {
+      return 'Something went wrong while processing your request.';
+    }
+  }
+  return readError(error);
+}
+
 /** Field-level messages, so a form can highlight the exact input that was wrong. */
 export function readFieldErrors(error) {
   return error?.response?.data?.fieldErrors || {};

@@ -1,8 +1,11 @@
 # Configuration used by the automated test suite.
 # An in-memory database is created fresh for the test run and thrown away afterwards.
+server:
+  # Tests that start a real server bind to loopback only, like every other non-public run.
+  address: 127.0.0.1
 spring:
   datasource:
-    url: jdbc:h2:mem:obfds-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:obfds-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;LOCK_TIMEOUT=10000
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
@@ -20,6 +23,16 @@ logging:
 
 obfds:
   seed-demo-data: true
+  seed:
+    mode: demo-fixed
+  registration:
+    mode: open
+  security:
+    # The suite logs in hundreds of times from one address, and several tests deliberately fail a
+    # login. The limits are raised so they cannot interfere; LoginHardeningApiTest lowers them
+    # again to prove the throttle itself.
+    login-max-failures: 1000
+    login-max-per-minute-per-address: 1000000
   jwt:
     secret: test-only-secret-key-for-automated-tests-32chars
     expiry-minutes: 60

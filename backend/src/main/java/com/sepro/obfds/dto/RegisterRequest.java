@@ -21,4 +21,6 @@ public record RegisterRequest(
                 @Size(max = 150)
                 String email,
         @Size(max = 20) String phone,
-        @Size(max = 250) String address) {}
+        @Size(max = 250) String address,
+        /** Only read when registration is in {@code invite} mode; ignored otherwise. */
+        @Size(max = 100) String inviteCode) {}

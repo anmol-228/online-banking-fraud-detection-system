@@ -11,7 +11,11 @@ const EMPTY_FORM = {
   email: '',
   phone: '',
   address: '',
+  inviteCode: '',
 };
+
+/** An invitation-code field is shown only for a deployment that registers by invitation. */
+const INVITE_ONLY = import.meta.env.VITE_REGISTRATION_INVITE === 'true';
 
 /** Customer registration screen (FR-01). */
 export default function RegisterPage() {
@@ -41,6 +45,7 @@ export default function RegisterPage() {
         ...form,
         username: form.username.trim(),
         email: form.email.trim(),
+        inviteCode: INVITE_ONLY ? form.inviteCode.trim() : undefined,
       });
       navigate('/dashboard', { replace: true });
     } catch (err) {
@@ -119,6 +124,17 @@ export default function RegisterPage() {
               <input {...fieldProps('address')} autoComplete="street-address" />
               {fieldErrors.address ? <span className="field__error">{fieldErrors.address}</span> : null}
             </label>
+            {INVITE_ONLY ? (
+              <label className="field">
+                <span className="field__label">Invitation code</span>
+                <input {...fieldProps('inviteCode')} autoComplete="off" required />
+                {fieldErrors.inviteCode ? (
+                  <span className="field__error">{fieldErrors.inviteCode}</span>
+                ) : (
+                  <span className="field__hint">Registration is by invitation only.</span>
+                )}
+              </label>
+            ) : null}
           </div>
 
           <button type="submit" className="button button--primary button--block" disabled={submitting}>

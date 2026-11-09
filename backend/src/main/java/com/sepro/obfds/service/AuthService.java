@@ -2,6 +2,7 @@ package com.sepro.obfds.service;
 
 import com.sepro.obfds.audit.AuditAction;
 import com.sepro.obfds.audit.AuditService;
+import com.sepro.obfds.config.AppProperties;
 import com.sepro.obfds.dto.AuthResponse;
 import com.sepro.obfds.dto.LoginRequest;
 import com.sepro.obfds.dto.RegisterRequest;
@@ -12,6 +13,7 @@ import com.sepro.obfds.entity.ApplicationUser;
 import com.sepro.obfds.entity.Customer;
 import com.sepro.obfds.entity.RoleName;
 import com.sepro.obfds.entity.UserRole;
+import com.sepro.obfds.exception.ApiException;
 import com.sepro.obfds.exception.BusinessRuleException;
 import com.sepro.obfds.repository.AccountRepository;
 import com.sepro.obfds.repository.ApplicationUserRepository;
@@ -20,8 +22,11 @@ import com.sepro.obfds.repository.UserRoleRepository;
 import com.sepro.obfds.security.CurrentUserService;
 import com.sepro.obfds.security.JwtService;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -56,6 +61,7 @@ public class AuthService {
     private final ReferenceGenerator referenceGenerator;
     private final AuditService auditService;
     private final CurrentUserService currentUserService;
+    private final AppProperties appProperties;
 
     public AuthService(
             ApplicationUserRepository userRepository,
@@ -67,7 +73,9 @@ public class AuthService {
             JwtService jwtService,
             ReferenceGenerator referenceGenerator,
             AuditService auditService,
-            CurrentUserService currentUserService) {
+            CurrentUserService currentUserService,
+            AppProperties appProperties) {
+        this.appProperties = appProperties;
         this.userRepository = userRepository;
         this.customerRepository = customerRepository;
         this.accountRepository = accountRepository;
@@ -83,10 +91,14 @@ public class AuthService {
     /** Registers a new customer and opens their first account (FR-01). */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        requireRegistrationOpen(request);
+
         String username = request.username().trim();
         String email = request.email().trim().toLowerCase();
 
-        if (userRepository.existsByUsername(username)) {
+        // Case-insensitive on every database: MySQL's default collation already is, H2's is not,
+        // and "Ravi.Kumar" must not become a second account next to "ravi.kumar".
+        if (userRepository.existsByUsernameIgnoreCase(username)) {
             throw new BusinessRuleException(
                     HttpStatus.CONFLICT, "USERNAME_TAKEN", "That username is already registered.");
         }
@@ -136,6 +148,41 @@ public class AuthService {
         return buildAuthResponse(user, customer.getCustomerNumber(), List.of(customerRole.authority()));
     }
 
+    /**
+     * Applies the registration policy before anything else is looked at or written.
+     *
+     * <p>Registration hands out an account with a balance, so on a public deployment it is
+     * {@code closed} (or {@code invite}), never {@code open}. Every refusal uses the same code and
+     * message, so a caller cannot tell a wrong invite code from a closed door.</p>
+     */
+    private void requireRegistrationOpen(RegisterRequest request) {
+        AppProperties.Registration policy = appProperties.getRegistration();
+        String mode = policy.getMode() == null ? "closed" : policy.getMode().toLowerCase(Locale.ROOT);
+
+        boolean allowed = switch (mode) {
+            case "open" -> true;
+            case "invite" -> inviteMatches(policy.getInviteCode(), request.inviteCode());
+            default -> false;
+        };
+        if (allowed && policy.getMaxCustomers() > 0 && customerRepository.count() >= policy.getMaxCustomers()) {
+            allowed = false;
+        }
+        if (!allowed) {
+            throw new ApiException(
+                    HttpStatus.FORBIDDEN, "REGISTRATION_CLOSED",
+                    "New registrations are not being accepted right now.");
+        }
+    }
+
+    /** Constant-time comparison, so response timing does not reveal how much of a guess matched. */
+    private static boolean inviteMatches(String expected, String supplied) {
+        if (expected == null || expected.isBlank() || supplied == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8), supplied.getBytes(StandardCharsets.UTF_8));
+    }
+
     /** Authenticates a user and issues a token (FR-02, FR-03). */
     @Transactional
     public AuthResponse login(LoginRequest request) {
@@ -147,8 +194,11 @@ public class AuthService {
         } catch (AuthenticationException ex) {
             // A failed attempt is audited before the exception is rethrown, so that repeated
             // failures are visible to an administrator (FR-20).
+            // The audit columns are bounded, and the supplied name is attacker-controlled, so it is
+            // cut to the column length rather than being allowed to break the audit write.
+            String audited = username.length() > 60 ? username.substring(0, 60) : username;
             auditService.failure(
-                    username, List.of(), AuditAction.LOGIN_FAILURE, "ApplicationUser", username,
+                    audited, List.of(), AuditAction.LOGIN_FAILURE, "ApplicationUser", audited,
                     "Login rejected: " + ex.getClass().getSimpleName());
             throw ex;
         }

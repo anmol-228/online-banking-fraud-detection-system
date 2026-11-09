@@ -1,5 +1,6 @@
 package com.sepro.obfds;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -29,7 +30,7 @@ class ResilienceApiTest extends AbstractApiTest {
     void tc19DatabaseFailureIsHandled() throws Exception {
         String token = customerToken();
 
-        when(transactionRepository.sumReservedAmount(anyLong()))
+        when(transactionRepository.sumReservedAmount(anyLong(), any()))
                 .thenThrow(new DataAccessResourceFailureException("Simulated database outage"));
 
         mockMvc.perform(get("/api/accounts/" + CUSTOMER_ACCOUNT + "/balance")
@@ -64,7 +65,7 @@ class ResilienceApiTest extends AbstractApiTest {
     void tc19ErrorShapeIsConsistent() throws Exception {
         String token = customerToken();
 
-        when(transactionRepository.sumReservedAmount(anyLong()))
+        when(transactionRepository.sumReservedAmount(anyLong(), any()))
                 .thenThrow(new DataAccessResourceFailureException("Simulated database outage"));
 
         mockMvc.perform(get("/api/accounts/" + CUSTOMER_ACCOUNT + "/balance")

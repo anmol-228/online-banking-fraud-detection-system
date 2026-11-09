@@ -23,9 +23,16 @@ jobs:
           distribution: temurin
           cache: maven
 
+      # `mvn verify` runs TWO Surefire executions in separate JVMs: the ordinary tests and the
+      # `concurrency` tests that commit real rows and race real transactions (see backend/pom.xml).
       - name: Build and test
         working-directory: backend
         run: mvn --batch-mode clean verify
+
+      # A green exit code only means nothing FAILED. This proves the important tests actually RAN:
+      # per-class floors, no skips, and an overall floor. (MySQL-only tests are skipped here by design.)
+      - name: Assert the tests that matter really executed
+        run: python3 scripts/assert_test_counts.py backend/target/surefire-reports
 
       - name: Upload the packaged JAR
         uses: actions/upload-artifact@v4
@@ -54,6 +61,12 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # Retry-safe transfer keys, auth-error handling, and the browser demo's rule engine checked
+      # against the matrix the backend generated (docs/generated/fraud-rule-matrix.json).
+      - name: Frontend policy and rule-parity checks
+        working-directory: frontend
+        run: npm run test:policy && npm run test:parity
+
       # Both modes must keep building: the full-stack build and the browser-only showcase.
       - name: Build (API mode)
         working-directory: frontend
@@ -64,6 +77,57 @@ jobs:
         env:
           VITE_APP_MODE: showcase
         run: npm run build
+
+  backend-mysql:
+    name: Backend on MySQL 8.4 (default isolation) and schema migrations
+    runs-on: ubuntu-latest
+
+    # The same suite, against a real MySQL at the server's default REPEATABLE READ. This is the job
+    # that catches what H2 hides: lock behaviour, isolation, ENUM columns, identity generation and
+    # the Flyway migrations. The credentials below belong to a throw-away container that lives for
+    # this job only and is not reachable from outside the runner.
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-throwaway-root
+          MYSQL_DATABASE: obfds_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-throwaway-root"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+
+    env:
+      SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/obfds_test?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ci-throwaway-root
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      # The migration tests empty and rebuild this scratch database; it is never the test database.
+      - name: Create the scratch database for the migration tests
+        run: |
+          sudo apt-get install -y --no-install-recommends mysql-client >/dev/null
+          mysql -h 127.0.0.1 -uroot -pci-throwaway-root -e "CREATE DATABASE IF NOT EXISTS obfds_probe"
+
+      - name: Build and test on MySQL
+        working-directory: backend
+        run: mvn --batch-mode clean verify
+
+      - name: Assert the tests that matter really executed (MySQL-only tests must RUN, none skipped)
+        run: python3 scripts/assert_test_counts.py backend/target/surefire-reports --mysql
 
   dependency-review:
     name: Dependency review

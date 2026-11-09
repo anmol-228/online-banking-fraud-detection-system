@@ -30,6 +30,7 @@ export const FRAUD_CONFIG = {
   velocityCount: 3,
   velocityMinutes: 10,
   balanceFraction: 0.8,
+  zone: 'Asia/Kolkata',
   oddHourStart: 0,
   oddHourEnd: 5,
   mediumScoreThreshold: 30,
@@ -101,8 +102,9 @@ export function evaluateRisk({
   // Velocity check — raises RAPID_TRANSFERS. The transfer being assessed is not counted
   // against itself, which is why the assessment runs before the transaction is stored.
   const windowStart = at.getTime() - FRAUD_CONFIG.velocityMinutes * 60000;
+  // Strictly AFTER the window start, exactly like the backend query (createdAt > windowStart).
   const recentCount = recentTransfers.filter(
-    (txn) => new Date(txn.createdAt).getTime() >= windowStart
+    (txn) => new Date(txn.createdAt).getTime() > windowStart
   ).length;
   if (recentCount >= FRAUD_CONFIG.velocityCount) {
     factors.push({
@@ -113,7 +115,11 @@ export function evaluateRisk({
   }
 
   // Balance check — raises BALANCE_DRAIN when the transfer would take most of the balance.
-  if (account.balance > 0 && value > account.balance * FRAUD_CONFIG.balanceFraction) {
+  // Whole-paisa integer arithmetic, so "strictly more than 80 percent" is exact (0.8 * 10000.01
+  // in floating point is not). Same answer as the backend's BigDecimal comparison.
+  const paise = (rupees) => Math.round(Number(rupees) * 100);
+  const fractionPercent = Math.round(FRAUD_CONFIG.balanceFraction * 100);
+  if (account.balance > 0 && paise(value) * 100 > paise(account.balance) * fractionPercent) {
     factors.push({
       code: 'BALANCE_DRAIN',
       description: `Transfer would move more than ${Math.round(
@@ -124,7 +130,15 @@ export function evaluateRisk({
   }
 
   // Hour check — raises UNUSUAL_HOUR inside the configured unusual-activity window.
-  const hour = at.getHours();
+  // The hour is read in the configured zone (the backend's obfds.fraud.zone), not in the
+  // visitor's own time zone, so a transfer at 02:00 in India scores the same everywhere.
+  const hour = Number(
+    new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      hourCycle: 'h23',
+      timeZone: FRAUD_CONFIG.zone,
+    }).format(at)
+  );
   if (hour >= FRAUD_CONFIG.oddHourStart && hour < FRAUD_CONFIG.oddHourEnd) {
     factors.push({
       code: 'UNUSUAL_HOUR',
