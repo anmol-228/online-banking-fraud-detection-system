@@ -10,6 +10,8 @@ RUN mvn --batch-mode -q -DskipTests package && cp target/obfds-backend-*.jar /ap
 FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S obfds && adduser -S -G obfds obfds
 COPY --from=build /app.jar /opt/obfds/app.jar
+COPY docker-entrypoint.sh /opt/obfds/docker-entrypoint.sh
+RUN chmod 0555 /opt/obfds/docker-entrypoint.sh
 USER obfds
 WORKDIR /opt/obfds
 
@@ -18,5 +20,4 @@ WORKDIR /opt/obfds
 ENV JAVA_OPTS="-XX:+UseSerialGC -XX:MaxRAMPercentage=55 -XX:MaxMetaspaceSize=128m -Xss512k -XX:TieredStopAtLevel=1 -XX:+ExitOnOutOfMemoryError" \
     SPRING_PROFILES_ACTIVE="mysql,public"
 EXPOSE 8080
-# The platform supplies PORT; the application reads SERVER_PORT.
-ENTRYPOINT ["sh", "-c", "SERVER_PORT=${PORT:-8080} exec java $JAVA_OPTS -jar /opt/obfds/app.jar"]
+ENTRYPOINT ["/opt/obfds/docker-entrypoint.sh"]
