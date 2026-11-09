@@ -26,10 +26,10 @@ export default function ReportFraudHelpPage() {
           <h2 className="card__title">This is a simulation</h2>
         </div>
         <p className="card__note">
-          The Online Banking &amp; Fraud Detection System is an educational simulation. It moves no
+          The Online Banking &amp; Fraud Detection System is a simulation. It moves no
           real money, is not connected to a real financial institution, and cannot report anything to a
           bank, the police or a regulator. An evidence file or a mail draft prepared here is practice
-          material for the team running the demonstration, not a complaint.
+          material for whoever runs the demonstration, not a complaint.
         </p>
       </section>
 
